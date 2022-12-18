@@ -18,22 +18,8 @@ import Control.Monad.ST
 import Data.Int (Int16)
 import Control.Monad
 
-type AudioWriter m a = (MonadResource m, Snd.Sample a) => (AudioSource m a) -> FilePath -> m()
-
 audioRate :: Double = 16000
 workingChunkSize :: Frames = round $ audioRate * 30 / 1000 
-
-castInt :: Double -> Int16
-castInt d = let maxint16 = 32768.0
-                is = d * maxint16
-	     in if (is > maxint16)
-	        then (round maxint16)
-		else if (is < -maxint16)
-		     then round (- maxint16)
-		     else round is
-
-castInts :: [V.Vector Double] -> [V.Vector Int16]
-castInts ds = map (V.map castInt) ds
 
 printSamples :: [V.Vector Int16] -> [Int]
 printSamples  ss = let sizes = \s -> V.length s
@@ -47,6 +33,10 @@ runSamples vd ss = let func = \s -> Vad.process (round audioRate) s vd
 
 myformat :: Snd.Format
 myformat =  Snd.Format Snd.HeaderFormatWav Snd.SampleFormatPcm16 Snd.EndianFile
+
+
+convertIntegral :: (MonadResource m) => AudioSource m Double -> AudioSource m Int16
+convertIntegral src = DCA.mapSamples DCA.integralSample src
 
 getwavs :: (MonadResource m, Snd.Sample a) => [FilePath] -> IO ([AudioSource m a])
 getwavs fps = mapM getwav fps
@@ -67,35 +57,31 @@ getWavFrom fp start = do src <- sourceSndFrom (Seconds start) fp
 			     reorged = DCA.reorganize workingChunkSize (head split)
 			 return reorged
 
-audioWriter :: AudioWriter (ResourceT IO) Double
-audioWriter src fp = sinkSnd fp myformat src
 
-getWavFromRec :: FilePath -> Double -> Double-> AudioWriter (ResourceT IO) Double -> Vad.VAD RealWorld -> IO ()
-getWavFromRec fp start limit writer vad =
+getWavFromRec :: FilePath -> Double -> Double -> Vad.VAD RealWorld -> IO ()
+getWavFromRec fp start limit vad =
      if (start < limit) then
 	do src  <- getWavFrom fp start
 	   putStrLn "got source"
 	   let twoSecs = takeStart (Seconds 2) src
-               length = DCA.framesToSeconds (frames twoSecs) audioRate
-	       samples = DCA.source src
-	       channelCount = DCA.channels src
+	       isrc = convertIntegral twoSecs
+               length = DCA.framesToSeconds (frames isrc) audioRate
+	       samples = DCA.source isrc
+	       channelCount = DCA.channels isrc
 	       ending = start + length
 	       elapsed = if (length >0) then ending else ending +1
                newpath = "./tmp/file" ++ show ending ++ ".wav"
 	   putStrLn ("writing " ++ newpath)
 	   putStrLn ("channel count: " ++ show channelCount)
 	   ss <- runResourceT $ samples $$ sinkList
-	   let rounded = castInts ss
-	       sizes = printSamples rounded
-	   bla <- runSamples vad rounded
---	   putStrLn ("is voice: " ++ show bla)
---	   putStrLn ("sample sizes: " ++ show sizes)
+	   bla <- runSamples vad ss
+	   putStrLn ("is voice: " ++ show bla)
 	   _ <- if (length >0)
 		then 
-                  runResourceT $ writer twoSecs newpath
+		  runResourceT $ sinkSnd newpath myformat isrc
 	        else 
 		  threadDelay 1000000
-	   getWavFromRec fp elapsed limit writer vad
+	   getWavFromRec fp elapsed limit vad
      else 
         putStrLn "Done!"
 
@@ -106,7 +92,7 @@ main = do vad <- Vad.create
           putStrLn ("Rate: " ++ show audioRate)
           putStrLn ("frameSize: " ++ show workingChunkSize)
 	  putStrLn ("Valid audio parameters: " ++ show isValidRateAndFrame)
-	  getWavFromRec "in.wav" 0.0 10.0 audioWriter vad
+	  getWavFromRec "in.wav" 0.0 10.0 vad
 
 
 
