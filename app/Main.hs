@@ -9,23 +9,17 @@ import Conduit
 import Data.Conduit.Audio as DCA
 import Data.Conduit.Audio.Sndfile
 import Data.Conduit.Audio.SampleRate
-import qualified Sound.File.Sndfile               as Snd
-import Data.Conduit.Audio.LAME 
+import qualified Sound.File.Sndfile as Snd
 import Control.Concurrent
 import Sound.VAD.WebRTC as Vad
 import qualified Data.Vector.Storable as V
 import qualified Data.Conduit.List as CL
 import Control.Monad.ST
 import Data.Int (Int16)
+
 type AudioWriter m a = (MonadResource m, Snd.Sample a) => (AudioSource m a) -> FilePath -> m()
 
 audioRate :: Double = 44100.0
-
-sink :: Sink String IO () -- consumes a stream of Strings, no result
-sink = CL.mapM_ putStrLn
-
-conduit :: Conduit Int IO String -- converts Ints into Strings
-conduit = CL.map show
 
 castInt :: Double -> Int16
 castInt d = let maxint16 = 32768.0
