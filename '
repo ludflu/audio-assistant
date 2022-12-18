@@ -21,6 +21,7 @@ type AudioWriter m a = (MonadResource m, Snd.Sample a) => (AudioSource m a) -> F
 
 audioRate :: Double = 44100.0
 
+
 sink :: Sink String IO () -- consumes a stream of Strings, no result
 sink = CL.mapM_ putStrLn
 
@@ -28,13 +29,7 @@ conduit :: Conduit Int IO String -- converts Ints into Strings
 conduit = CL.map show
 
 castInt :: Double -> Int16
-castInt d = let maxint16 = 32768.0
-                is = d * maxint16
-	     in if (is > maxint16)
-	        then (round maxint16)
-		else if (is < -maxint16)
-		     then round (- maxint16)
-		     else round is
+castInt d = round d
 
 castInts :: [V.Vector Double] -> [V.Vector Int16]
 castInts ds = map (V.map castInt) ds
@@ -42,6 +37,10 @@ castInts ds = map (V.map castInt) ds
 runSamples :: Vad.VAD RealWorld -> [V.Vector Int16] -> IO [Bool]
 runSamples vd ss = let func = \s -> Vad.process (round audioRate) s vd
 		    in mapM func ss
+
+printMe :: V.Vector Int16 -> IO ()
+printMe vs = let ss :: V.Vector String = V.map (show . fromIntegral) vs
+	      in mapM_ putStrLn 
 
 myformat :: Snd.Format
 myformat =  Snd.Format Snd.HeaderFormatWav  Snd.SampleFormatPcm16 Snd.EndianFile
@@ -69,9 +68,8 @@ getWavFromRec fp start limit writer vad =
 	   putStrLn ("writing " ++ newpath)
 	   ss <- runResourceT $ samples $$ sinkList
 	   let rounded = castInts ss
---	   bla <- runSamples vad rounded
-	   putStrLn ("isvoice: " ++ show rounded)
---	   putStrLn ("isvoice: " ++ show ss)
+	   bla <- runSamples vad rounded
+	   putStrLn ("isvoice: " ++ show bla)
 	   _ <- if (length >0)
 		then 
                   runResourceT $ writer twoSecs newpath
