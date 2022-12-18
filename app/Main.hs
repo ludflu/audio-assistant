@@ -16,6 +16,7 @@ import qualified Data.Vector.Storable as V
 import qualified Data.Conduit.List as CL
 import Control.Monad.ST
 import Data.Int (Int16)
+import Control.Monad
 
 type AudioWriter m a = (MonadResource m, Snd.Sample a) => (AudioSource m a) -> FilePath -> m()
 
@@ -45,10 +46,20 @@ runSamples vd ss = let func = \s -> Vad.process (round audioRate) s vd
 		    in mapM func validFrames
 
 myformat :: Snd.Format
-myformat =  Snd.Format Snd.HeaderFormatWav  Snd.SampleFormatPcm16 Snd.EndianFile
+myformat =  Snd.Format Snd.HeaderFormatWav Snd.SampleFormatPcm16 Snd.EndianFile
+
+getwavs :: (MonadResource m, Snd.Sample a) => [FilePath] -> IO ([AudioSource m a])
+getwavs fps = mapM getwav fps
 
 getwav :: (MonadResource m, Snd.Sample a) => FilePath -> IO (AudioSource m a)
 getwav fp = sourceSnd fp
+
+concatWavs:: (MonadResource m, Snd.Sample a) => [FilePath] -> IO (AudioSource m a)
+concatWavs fps = do as <- getwavs fps
+		    let first = head as
+			rest = tail as 
+		        combined = foldl DCA.concatenate first rest
+		    return combined
 
 getWavFrom :: (MonadResource m, Snd.Sample a) => FilePath -> Double -> IO (AudioSource m a)
 getWavFrom fp start = do src <- sourceSndFrom (Seconds start) fp
