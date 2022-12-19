@@ -51,34 +51,36 @@ concatWavs fps = do as <- getwavs fps
 		        combined = foldl DCA.concatenate first rest
 		    return combined
 
-getWavFrom :: (MonadResource m, Snd.Sample a) => FilePath -> Double -> IO (AudioSource m a)
-getWavFrom fp start = do src <- sourceSndFrom (Seconds start) fp
-			 let split = DCA.splitChannels src -- we only want a single channel
-			     reorged = DCA.reorganize workingChunkSize (head split)
-			 return reorged
+-- given a path, a start time and a duration (in seconds) will return:
+-- a single channel audio source, 
+-- with pulses recorded as Int16s
+-- in chunks of 30 ms
+getWavFrom :: (MonadResource m) => FilePath -> Double -> Double -> IO (AudioSource m Int16)
+getWavFrom fp start dur = do src <- sourceSndFrom (Seconds start) fp
+			     let split = DCA.splitChannels src -- we only want a single channel
+			         reorged = DCA.reorganize workingChunkSize (head split)
+				 timelimited = takeStart (Seconds dur) reorged
+				 is = convertIntegral timelimited
+			     return is
 
 
 getWavFromRec :: FilePath -> Double -> Double -> Vad.VAD RealWorld -> IO ()
 getWavFromRec fp start limit vad =
      if (start < limit) then
-	do src  <- getWavFrom fp start
+	do src <- getWavFrom fp start 2.0
 	   putStrLn "got source"
-	   let twoSecs = takeStart (Seconds 2) src
-	       isrc = convertIntegral twoSecs
-               length = DCA.framesToSeconds (frames isrc) audioRate
-	       samples = DCA.source isrc
-	       channelCount = DCA.channels isrc
+	   let length = DCA.framesToSeconds (frames src) audioRate
+	       samples = DCA.source src
 	       ending = start + length
 	       elapsed = if (length >0) then ending else ending +1
                newpath = "./tmp/file" ++ show ending ++ ".wav"
 	   putStrLn ("writing " ++ newpath)
-	   putStrLn ("channel count: " ++ show channelCount)
-	   ss <- runResourceT $ samples $$ sinkList
-	   bla <- runSamples vad ss
-	   putStrLn ("is voice: " ++ show bla)
+	   ss <- runResourceT $ samples $$ sinkList --get samples from conduit
+	   voiceDetected <- runSamples vad ss
+	   putStrLn ("is voice: " ++ show voiceDetected)
 	   _ <- if (length >0)
 		then 
-		  runResourceT $ sinkSnd newpath myformat isrc
+		  runResourceT $ sinkSnd newpath myformat src
 	        else 
 		  threadDelay 1000000
 	   getWavFromRec fp elapsed limit vad
@@ -89,9 +91,6 @@ isValidRateAndFrame = Vad.validRateAndFrameLength (round audioRate) workingChunk
 	
 main :: IO ()
 main = do vad <- Vad.create
-          putStrLn ("Rate: " ++ show audioRate)
-          putStrLn ("frameSize: " ++ show workingChunkSize)
-	  putStrLn ("Valid audio parameters: " ++ show isValidRateAndFrame)
 	  getWavFromRec "in.wav" 0.0 10.0 vad
 
 
