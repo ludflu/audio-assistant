@@ -17,18 +17,21 @@ import qualified Data.Conduit.List as CL
 import Control.Monad.ST
 import Data.Int (Int16)
 import Control.Monad
+import Control.Monad.State
 
-data AudioSegment = AudioSegment { startTime:: Double, sample :: V.Vector Int16}
+data AudioSegment = AudioSegment {segmentStart:: Double, samples :: [V.Vector Int16], isVoice :: V.Vector Bool}
 
-data Listener = ListenerState { 
+data ListenerST = ListenerST {
                                 path :: FilePath,
-                                start :: Double,
+                                startTime :: Double,
+                                segmentSize :: Double,
                                 limit :: Double,
+                                vad :: Vad.VAD RealWorld,
                                 segments :: [AudioSegment]
                               }
 
 audioRate :: Double = 16000
-workingChunkSize :: Frames = round $ audioRate * 30 / 1000 
+workingChunkSize :: Frames = round $ audioRate * 30 / 1000
 
 printSamples :: [V.Vector Int16] -> [Int]
 printSamples  ss = let sizes = \s -> V.length s
@@ -73,33 +76,30 @@ getWavFrom fp start dur = do src <- sourceSndFrom (Seconds start) fp
                              return is
 
 
-getWavFromRec :: FilePath -> Double -> Double -> Vad.VAD RealWorld -> IO ()
-getWavFromRec fp start limit vad =
-     if (start < limit) then
-        do src <- getWavFrom fp start 2.0
-           putStrLn "got source"
-           let length = DCA.framesToSeconds (frames src) audioRate
-               samples = DCA.source src
-               ending = start + length
-               elapsed = if (length >0) then ending else ending +1
-               newpath = "./tmp/file" ++ show ending ++ ".wav"
-           putStrLn ("writing " ++ newpath)
-           ss <- runResourceT $ samples $$ sinkList --get samples from conduit
-           --ss <- runConduit $ samples .| sinkList --get samples from conduit
-           voiceDetected <- runSamples vad ss
-           putStrLn ("is voice: " ++ show voiceDetected)
-           _ <- if (length >0)
-            then
-              runResourceT $ sinkSnd newpath myformat src
-              --sinkSnd newpath myformat src
-            else 
-              threadDelay 1000000
-           getWavFromRec fp elapsed limit vad
-         else 
-            putStrLn "Done!"
+getWavST :: StateT ListenerST IO ()
+getWavST = do listener <- get
+              src <- liftIO $ getWavFrom (path listener) (startTime listener) (segmentSize listener)
+              let length = DCA.framesToSeconds (frames src) audioRate
+                  samples = DCA.source src
+                  ending = (startTime listener) + length
+                  elapsed = if (length >0) then ending else ending +1
+                  newpath = "./tmp/file" ++ show ending ++ ".wav"
+              ss <- liftIO $ runResourceT $ samples $$ sinkList --get samples from conduit
+              voiceDetected <- liftIO $ runSamples (vad listener) ss --voice tagging
+              let segs = AudioSegment { segmentStart=(startTime listener), samples = ss, isVoice=V.fromList voiceDetected }
+              _ <- if (length >0) then
+                     liftIO $ runResourceT $ sinkSnd newpath myformat src
+                   else
+                     liftIO $ threadDelay 1000000
+              put listener { startTime = elapsed, segments = segs : (segments listener) }
+              if (elapsed > (limit listener))
+                then return ()
+                else getWavST
+
 
 isValidRateAndFrame = Vad.validRateAndFrameLength (round audioRate) workingChunkSize
 
 main :: IO ()
 main = do vad <- Vad.create
-          getWavFromRec "in.wav" 0.0 10.0 vad
+          let initialState = ListenerST { path = "in.wav", startTime=0.0, segmentSize=2.0, limit=10.0, vad=vad, segments = []}
+          runStateT getWavST initialState  >> return ()

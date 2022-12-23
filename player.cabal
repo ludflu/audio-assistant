@@ -34,6 +34,7 @@ executable player
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:    base ^>=4.15.1.0,
+                      mtl,
                       hsndfile,
                       conduit,
                       conduit-audio-samplerate,
