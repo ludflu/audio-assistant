@@ -5,6 +5,7 @@
 
 module Main where
 
+import Numeric
 import Conduit
 import Data.Conduit.Audio as DCA
 import Data.Conduit.Audio.Sndfile
@@ -18,20 +19,29 @@ import Control.Monad.ST
 import Data.Int (Int16)
 import Control.Monad
 import Control.Monad.State
+import Data.Maybe
 
-data AudioSegment = AudioSegment {segmentStart:: Double, samples :: [V.Vector Int16], isVoice :: V.Vector Bool}
+data AudioSegment = AudioSegment {
+                                    segmentStart:: Double, 
+                                    samples :: [V.Vector Int16], 
+                                    isVoice :: V.Vector Bool
+                                 } deriving Show
 
 data ListenerST = ListenerST {
                                 path :: FilePath,
                                 startTime :: Double,
-                                segmentSize :: Double,
+                                voiceStartTime :: Maybe Double,
+                                voiceEndTime :: Maybe Double,
+                                segmentDuration :: Double,
                                 limit :: Double,
                                 vad :: Vad.VAD RealWorld,
                                 segments :: [AudioSegment]
                               }
 
+timeChunk :: Double = 30.0 / 1000.0
 audioRate :: Double = 16000
-workingChunkSize :: Frames = round $ audioRate * 30 / 1000
+thresholdPurportion :: Double = 0.55 -- 55% of the samples should be on or off to turn on recording (splice out for recognition)
+workingChunkSize :: Frames = round $ audioRate * timeChunk
 
 printSamples :: [V.Vector Int16] -> [Int]
 printSamples  ss = let sizes = \s -> V.length s
@@ -76,24 +86,62 @@ getWavFrom fp start dur = do src <- sourceSndFrom (Seconds start) fp
                              return is
 
 
-getWavST :: StateT ListenerST IO ()
+countOn :: [Bool] -> Int
+countOn items = length $ filter (==True) items
+
+countAll :: [Bool] -> Int
+countAll items = length items
+
+
+showFullPrecision :: Double -> String
+showFullPrecision x = showFFloat Nothing x ""
+
+
+getWavST :: StateT ListenerST IO (Double,Double)
 getWavST = do listener <- get
-              src <- liftIO $ getWavFrom (path listener) (startTime listener) (segmentSize listener)
+              src <- liftIO $ getWavFrom (path listener) (startTime listener) (segmentDuration listener)
               let length = DCA.framesToSeconds (frames src) audioRate
                   samples = DCA.source src
+                  threshold = round $ thresholdPurportion * (segmentDuration listener)
                   ending = (startTime listener) + length
                   elapsed = if (length >0) then ending else ending +1
                   newpath = "./tmp/file" ++ show ending ++ ".wav"
               ss <- liftIO $ runResourceT $ samples $$ sinkList --get samples from conduit
-              voiceDetected <- liftIO $ runSamples (vad listener) ss --voice tagging
-              let segs = AudioSegment { segmentStart=(startTime listener), samples = ss, isVoice=V.fromList voiceDetected }
-              _ <- if (length >0) then
-                     liftIO $ runResourceT $ sinkSnd newpath myformat src
-                   else
-                     liftIO $ threadDelay 1000000
-              put listener { startTime = elapsed, segments = segs : (segments listener) }
-              if (elapsed > (limit listener))
-                then return ()
+              voiceDetected :: [Bool] <- liftIO $ runSamples (vad listener) ss --voice tagging
+              let numberOn :: Int = countOn voiceDetected
+                  sampleCount :: Int = countAll voiceDetected
+                  percentOn :: Double =  fromIntegral numberOn / fromIntegral sampleCount
+                  percentOff = 1.0 - percentOn
+                  start = if (percentOn > thresholdPurportion) && (isNothing $ voiceStartTime listener)
+                             then Just (startTime listener)
+                             else voiceStartTime listener   --if there's already a value, don't overwrite it
+                  end = if (isJust start) && (percentOn < thresholdPurportion) && (isNothing $ voiceEndTime listener)
+                             then Just elapsed
+                             else voiceEndTime listener   -- if there's already a value, don't overwrite it
+                  segs = AudioSegment { 
+                                        segmentStart=(startTime listener), 
+                                        samples = ss, 
+                                        isVoice=V.fromList voiceDetected
+                                      }
+              _ <- liftIO $ putStrLn "-----------------------"
+              _ <- liftIO $ putStrLn $ showFullPrecision percentOn
+              _ <- liftIO $ putStrLn $ showFullPrecision percentOff
+              _ <- liftIO $ putStrLn $ "elapsed:"
+              _ <- liftIO $ putStrLn $ show elapsed
+              _ <- liftIO $ putStrLn $ show start
+              _ <- liftIO $ putStrLn $ show end
+
+--              _ <- if (length >0) then
+--                     liftIO $ runResourceT $ sinkSnd newpath myformat src
+--                   else
+--                     liftIO $ threadDelay 1000000
+              put listener { startTime = elapsed, 
+                             segments = segs : (segments listener),
+                             voiceStartTime = start,
+                             voiceEndTime = end
+                           }
+              if (isJust start && isJust end) || elapsed > limit listener
+                then return (fromMaybe (-1.0) start, fromMaybe (-1.0) end)
                 else getWavST
 
 
@@ -101,5 +149,20 @@ isValidRateAndFrame = Vad.validRateAndFrameLength (round audioRate) workingChunk
 
 main :: IO ()
 main = do vad <- Vad.create
-          let initialState = ListenerST { path = "in.wav", startTime=0.0, segmentSize=2.0, limit=10.0, vad=vad, segments = []}
-          runStateT getWavST initialState  >> return ()
+          let initialState = ListenerST { 
+              path = "in.wav", 
+              startTime=0.0, 
+              segmentDuration=2.0, 
+              limit=30.0, 
+              vad=vad, 
+              segments = [],
+              voiceStartTime = Nothing,
+              voiceEndTime = Nothing
+            }
+
+          (se, ls) <- runStateT getWavST initialState  
+          _ <- putStrLn  "---------------------------------------------------"
+          _ <- putStrLn $ show (voiceStartTime ls)
+          _ <- putStrLn $ show (voiceEndTime ls)
+
+          return ()
