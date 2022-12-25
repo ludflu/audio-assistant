@@ -20,6 +20,7 @@ import Data.Int (Int16)
 import Control.Monad
 import Control.Monad.State
 import Data.Maybe
+import SendAudio 
 
 data AudioSegment = AudioSegment {
                                     segmentStart:: Double, 
