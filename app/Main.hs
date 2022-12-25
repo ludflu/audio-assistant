@@ -86,6 +86,15 @@ getWavFrom fp start dur = do src <- sourceSndFrom (Seconds start) fp
                              return is
 
 
+writeWavMaybe :: FilePath -> FilePath -> Maybe Double -> Maybe Double -> IO ()
+writeWavMaybe oldPath newPath start end =
+    let startEnd = getStartEnd start end
+     in case startEnd of 
+        Nothing -> return ()
+        Just (_start, _end) -> do src <- getWavFrom oldPath _start (_end-_start)
+                                  runResourceT $ sinkSnd newPath myformat src
+
+
 countOn :: [Bool] -> Int
 countOn items = length $ filter (==True) items
 
@@ -96,8 +105,12 @@ countAll items = length items
 showFullPrecision :: Double -> String
 showFullPrecision x = showFFloat Nothing x ""
 
+getStartEnd :: Maybe Double -> Maybe Double -> Maybe (Double, Double)
+getStartEnd start end = do s <- start
+                           e <- end
+                           return (s,e)
 
-getWavST :: StateT ListenerST IO (Double,Double)
+getWavST :: StateT ListenerST IO ()
 getWavST = do listener <- get
               src <- liftIO $ getWavFrom (path listener) (startTime listener) (segmentDuration listener)
               let length = DCA.framesToSeconds (frames src) audioRate
@@ -131,17 +144,13 @@ getWavST = do listener <- get
               _ <- liftIO $ putStrLn $ show start
               _ <- liftIO $ putStrLn $ show end
 
---              _ <- if (length >0) then
---                     liftIO $ runResourceT $ sinkSnd newpath myformat src
---                   else
---                     liftIO $ threadDelay 1000000
               put listener { startTime = elapsed, 
                              segments = segs : (segments listener),
                              voiceStartTime = start,
                              voiceEndTime = end
                            }
               if (isJust start && isJust end) || elapsed > limit listener
-                then return (fromMaybe (-1.0) start, fromMaybe (-1.0) end)
+                then liftIO $ writeWavMaybe (path listener) "tmp/captured.wav" start end
                 else getWavST
 
 
