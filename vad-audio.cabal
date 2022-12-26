@@ -29,7 +29,7 @@ executable vad-audio
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
-    -- other-modules:
+    other-modules: SendAudio
 
     --build-depends:    base ^>=4.15.1.0,
                       --conduit-audio-sndfile ^>=0.1.2.2,
@@ -46,6 +46,7 @@ executable vad-audio
                       webrtc-vad,
                       vector,
                       aeson,
-                      req
+                      req,
+                      http-client
     hs-source-dirs:   app
     default-language: Haskell2010

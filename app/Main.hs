@@ -48,11 +48,10 @@ printSamples :: [V.Vector Int16] -> [Int]
 printSamples   = map V.length 
 
 
-runSamples :: PrimMonad m => Vad.VAD (PrimState m) -> [V.Vector Int16] -> m [Bool]
---runSamples :: Vad.VAD RealWorld -> [V.Vector Int16] -> IO [Bool]
-runSamples vd ss = let func s = Vad.process (round audioRate) s vd
-                       validFrames = filter (\vs -> V.length vs == workingChunkSize) ss
-                    in mapM func validFrames
+detectVoice :: PrimMonad m => Vad.VAD (PrimState m) -> [V.Vector Int16] -> m [Bool]
+detectVoice vd ss = let func s = Vad.process (round audioRate) s vd
+                        validFrames = filter (\vs -> V.length vs == workingChunkSize) ss
+                     in mapM func validFrames
 
 myformat :: Snd.Format
 myformat =  Snd.Format Snd.HeaderFormatWav Snd.SampleFormatPcm16 Snd.EndianFile
@@ -117,7 +116,7 @@ getWavST = do listener <- get
                   elapsed = if length >0 then ending else ending +1
                   newpath = "./tmp/file" ++ show ending ++ ".wav"
               ss <- liftIO $ runResourceT $ samples $$ sinkList --get samples from conduit
-              voiceDetected :: [Bool] <- liftIO $ runSamples (vad listener) ss --voice tagging
+              voiceDetected :: [Bool] <- liftIO $ detectVoice (vad listener) ss --voice tagging
               let numberOn :: Int = countOn voiceDetected
                   sampleCount :: Int = countAll voiceDetected
                   percentOn :: Double =  fromIntegral numberOn / fromIntegral sampleCount
@@ -140,7 +139,9 @@ getWavST = do listener <- get
                              voiceEndTime = end
                            }
               if (isJust start && isJust end) || elapsed > limit listener
-                then liftIO $ writeWavMaybe (path listener) "tmp/captured.wav" start end
+                then do liftIO$ print "sending audio!"
+                        liftIO $ writeWavMaybe (path listener) "tmp/captured.wav" start end
+                        liftIO $ sendAudio "tmp/captured.wav"
                 else getWavST
 
 
