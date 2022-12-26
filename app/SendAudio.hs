@@ -21,7 +21,7 @@ sendAudio fp = runReq defaultHttpConfig $ do
     req
       POST -- method
       (https "httpbin.org" /: "post") -- safe by construction URL
-      (ReqBodyJson payload) -- use built-in options or add your own
+      (ReqBodyFile fp)
       jsonResponse -- specify how to interpret response
       mempty -- query params, headers, explicit port number, etc.
   liftIO $ print (responseBody r :: Value)
