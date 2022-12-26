@@ -48,7 +48,8 @@ printSamples :: [V.Vector Int16] -> [Int]
 printSamples   = map V.length 
 
 
-runSamples :: Vad.VAD RealWorld -> [V.Vector Int16] -> IO [Bool]
+runSamples :: PrimMonad m => Vad.VAD (PrimState m) -> [V.Vector Int16] -> m [Bool]
+--runSamples :: Vad.VAD RealWorld -> [V.Vector Int16] -> IO [Bool]
 runSamples vd ss = let func s = Vad.process (round audioRate) s vd
                        validFrames = filter (\vs -> V.length vs == workingChunkSize) ss
                     in mapM func validFrames
