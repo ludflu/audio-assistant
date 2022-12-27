@@ -110,7 +110,6 @@ calcBoundary listener activations elapsed =
     let numberOn :: Int = countTrue activations
         sampleCount :: Int = length activations
         percentOn :: Double =  fromIntegral numberOn / fromIntegral sampleCount
-        percentOff = 1.0 - percentOn
         start = if (percentOn > thresholdPurportion) && isNothing (voiceStartTime listener)
             then Just (timeOffset listener)
             else voiceStartTime listener   --if there's already a value, don't overwrite it
@@ -129,7 +128,6 @@ getWavST = do listener <- get
               let length = DCA.framesToSeconds (frames src) audioRate
                   capfilepath = "tmp/capture" ++ show (count listener) ++ ".wav"
                   samples = DCA.source src
-                  --threshold = round $ thresholdPurportion * segmentDuration listener
                   ending = timeOffset listener + length
                   elapsed = if length >0 then ending else ending +1
               ss <- liftIO $ runResourceT $ samples $$ sinkList --get samples from conduit
