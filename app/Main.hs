@@ -21,6 +21,7 @@ import Control.Monad
 import Control.Monad.State
 import Data.Maybe
 import SendAudio 
+import Data.Time.Clock
 
 data AudioSegment = AudioSegment {
                                     segmentStart:: Double, 
@@ -30,13 +31,14 @@ data AudioSegment = AudioSegment {
 
 data ListenerST = ListenerST {
                                 path :: FilePath,
-                                startTime :: Double,
+                                startTime :: UTCTime,
+                                timeOffset :: Double,
                                 voiceStartTime :: Maybe Double,
                                 voiceEndTime :: Maybe Double,
                                 segmentDuration :: Double,
                                 limit :: Double,
                                 vad :: Vad.VAD RealWorld,
-                                segments :: [AudioSegment]
+                                count :: Int
                               }
 
 timeChunk :: Double = 30.0 / 1000.0
@@ -106,13 +108,32 @@ getStartEnd start end = do s <- start
                            e <- end
                            return (s,e)
 
+debugPrint :: ListenerST -> IO ()
+debugPrint listener = do print "------------------------------"
+                         print "count:"
+                         print (count listener)
+                         print "time offset:"
+                         print (timeOffset listener)
+                         print "duration:"
+                         print (segmentDuration listener)
+                         print "voiceStart:"
+                         print (voiceStartTime listener)
+                         print "voiceEnd:"
+                         print (voiceEndTime listener)
+
+
 getWavST :: StateT ListenerST IO ()
 getWavST = do listener <- get
-              src <- liftIO $ getWavFrom (path listener) (startTime listener) (segmentDuration listener)
+              liftIO$ print "Starting to listen !"
+              liftIO $ debugPrint listener
+              currentTime <- liftIO getCurrentTime
+              src <- liftIO $ getWavFrom (path listener) (timeOffset listener) (segmentDuration listener)
               let length = DCA.framesToSeconds (frames src) audioRate
+                  cap = "tmp/capture" ++ show (count listener) ++ ".wav"
                   samples = DCA.source src
+                  additionalOffset :: Double = realToFrac $ nominalDiffTimeToSeconds $  diffUTCTime currentTime (startTime listener)
                   threshold = round $ thresholdPurportion * segmentDuration listener
-                  ending = startTime listener + length
+                  ending = timeOffset listener + length
                   elapsed = if length >0 then ending else ending +1
                   newpath = "./tmp/file" ++ show ending ++ ".wav"
               ss <- liftIO $ runResourceT $ samples $$ sinkList --get samples from conduit
@@ -122,42 +143,48 @@ getWavST = do listener <- get
                   percentOn :: Double =  fromIntegral numberOn / fromIntegral sampleCount
                   percentOff = 1.0 - percentOn
                   start = if (percentOn > thresholdPurportion) && isNothing (voiceStartTime listener)
-                             then Just (startTime listener)
+                             then Just (timeOffset listener)
                              else voiceStartTime listener   --if there's already a value, don't overwrite it
                   end = if isJust start && (percentOn < thresholdPurportion) && isNothing (voiceEndTime listener)
                              then Just elapsed
                              else voiceEndTime listener   -- if there's already a value, don't overwrite it
-                  segs = AudioSegment { 
-                                        segmentStart=startTime listener, 
-                                        samples = ss, 
-                                        isVoice=V.fromList voiceDetected
-                                      }
-
-              put listener { startTime = elapsed, 
-                             segments = segs : segments listener,
-                             voiceStartTime = start,
-                             voiceEndTime = end
+              put listener { 
+                              voiceStartTime = start, 
+                              voiceEndTime = end,
+                              timeOffset = ending
                            }
-              if (isJust start && isJust end) || elapsed > limit listener
-                then do liftIO$ print "sending audio!"
-                        liftIO $ writeWavMaybe (path listener) "tmp/captured.wav" start end
-                        liftIO $ sendAudio "tmp/captured.wav"
-                else getWavST
+              if (isJust start && isJust end) && length >0
+                then do lst <- get
+                        liftIO$ print "sending audio!"
+                        liftIO $ debugPrint lst
+                        put listener { 
+                                       voiceStartTime = Nothing, voiceEndTime = Nothing ,
+                                       count = count listener + 1
+                                     }
+                        liftIO $ writeWavMaybe (path listener) cap start end
+                        liftIO $ sendAudio cap
+                        getWavST
+                else liftIO $ threadDelay 1000000 -- sleep 1 second
+              getWavST
 
 
 isValidRateAndFrame = Vad.validRateAndFrameLength (round audioRate) workingChunkSize
 
 main :: IO ()
-main = do vad <- Vad.create
+main = do currentTime <- getCurrentTime
+          print "vad-listener start"
+          print currentTime
+          vad <- Vad.create
           let initialState = ListenerST { 
+              startTime = currentTime,
               path = "in.wav", 
-              startTime=0.0, 
+              timeOffset=0.0, 
               segmentDuration=2.0, 
               limit=30.0, 
               vad=vad, 
-              segments = [],
               voiceStartTime = Nothing,
-              voiceEndTime = Nothing
+              voiceEndTime = Nothing,
+              count = 0
             }
 
           (se, ls) <- runStateT getWavST initialState  
