@@ -60,13 +60,6 @@ convertIntegral  = DCA.mapSamples DCA.integralSample
 getwavs :: (MonadResource m, Snd.Sample a) => [FilePath] -> IO [AudioSource m a]
 getwavs = mapM sourceSnd 
 
-concatWavs:: (MonadResource m, Snd.Sample a) => [FilePath] -> IO (AudioSource m a)
-concatWavs fps = do as <- getwavs fps
-                    let first = head as
-                        rest = tail as 
-                        combined = foldl DCA.concatenate first rest
-                    return combined
-
 -- given a path, a start time and a duration (in seconds) will return:
 -- a single channel audio source, 
 -- with pulses recorded as Int16s
@@ -88,12 +81,8 @@ writeWavMaybe oldPath newPath start end =
                                   runResourceT $ sinkSnd newPath myformat src
 
 
-countOn :: [Bool] -> Int
-countOn items = length $ filter (==True) items
-
-countAll :: [Bool] -> Int
-countAll = length
-
+countTrue :: [Bool] -> Int
+countTrue items = length $ filter (==True) items
 
 showFullPrecision :: Double -> String
 showFullPrecision x = showFFloat Nothing x ""
@@ -118,8 +107,8 @@ debugPrint listener = do print "------------------------------"
 
 calcBoundary :: ListenerST -> [Bool] -> Double -> RecordingBound
 calcBoundary listener activations elapsed = 
-    let numberOn :: Int = countOn activations
-        sampleCount :: Int = countAll activations
+    let numberOn :: Int = countTrue activations
+        sampleCount :: Int = length activations
         percentOn :: Double =  fromIntegral numberOn / fromIntegral sampleCount
         percentOff = 1.0 - percentOn
         start = if (percentOn > thresholdPurportion) && isNothing (voiceStartTime listener)
@@ -138,7 +127,7 @@ getWavST = do listener <- get
               currentTime <- liftIO getCurrentTime
               src <- liftIO $ getWavFrom (path listener) (timeOffset listener) (segmentDuration listener)
               let length = DCA.framesToSeconds (frames src) audioRate
-                  cap = "tmp/capture" ++ show (count listener) ++ ".wav"
+                  capfilepath = "tmp/capture" ++ show (count listener) ++ ".wav"
                   samples = DCA.source src
                   additionalOffset :: Double = realToFrac $ nominalDiffTimeToSeconds $  diffUTCTime currentTime (startTime listener)
                   threshold = round $ thresholdPurportion * segmentDuration listener
@@ -158,8 +147,8 @@ getWavST = do listener <- get
                                        voiceStartTime = Nothing, voiceEndTime = Nothing ,
                                        count = count listener + 1
                                      }
-                        liftIO $ writeWavMaybe (path listener) cap (voiceStart boundary) (voiceEnd boundary)
-                        transcript <- liftIO $ sendAudio cap
+                        liftIO $ writeWavMaybe (path listener) capfilepath (voiceStart boundary) (voiceEnd boundary)
+                        transcript <- liftIO $ sendAudio capfilepath
                         liftIO $ print transcript
                         getWavST
                 else liftIO $ threadDelay 1000000 -- sleep 1 second
