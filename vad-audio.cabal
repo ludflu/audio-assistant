@@ -1,5 +1,5 @@
 cabal-version:      2.4
-name:               player
+name:               vad-audio
 version:            0.1.0.0
 
 -- A short (one-line) description of the package.
@@ -25,23 +25,30 @@ version:            0.1.0.0
 -- category:
 extra-source-files: CHANGELOG.md
 
-executable player
+executable vad-audio
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
-    -- other-modules:
+    other-modules: SendAudio
 
+    --build-depends:    base ^>=4.15.1.0,
+                      --conduit-audio-sndfile ^>=0.1.2.2,
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
-    build-depends:    base ^>=4.15.1.0,
+    build-depends:    base,
                       mtl,
                       hsndfile,
                       conduit,
                       conduit-audio-samplerate,
                       conduit-audio,
                       conduit-audio-lame,
-                      conduit-audio-sndfile ^>=0.1.2.2,
-		      webrtc-vad,
-	              vector
+                      conduit-audio-sndfile,
+                      webrtc-vad,
+                      vector,
+                      aeson,
+                      req,
+                      http-client,
+                      time,
+                      text
     hs-source-dirs:   app
     default-language: Haskell2010
