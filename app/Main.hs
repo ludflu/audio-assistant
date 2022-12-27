@@ -120,7 +120,7 @@ calcBoundary listener activations elapsed =
      in RecordingBound { voiceStart = start, voiceEnd = end}
  
 isComplete :: RecordingBound -> Bool
-isComplete bound = (isJust $ voiceStart bound) && (isJust $ voiceEnd bound)
+isComplete bound = isJust (voiceStart bound) && isJust (voiceEnd bound)
 
 getWavST :: StateT ListenerST IO ()
 getWavST = do listener <- get
