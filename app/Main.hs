@@ -23,12 +23,6 @@ import Data.Maybe
 import SendAudio 
 import Data.Time.Clock
 
-data AudioSegment = AudioSegment {
-                                    segmentStart:: Double, 
-                                    samples :: [V.Vector Int16], 
-                                    isVoice :: V.Vector Bool
-                                 } deriving Show
-
 data ListenerST = ListenerST {
                                 path :: FilePath,
                                 startTime :: UTCTime,
@@ -40,6 +34,7 @@ data ListenerST = ListenerST {
                                 vad :: Vad.VAD RealWorld,
                                 count :: Int
                               }
+data RecordingBound = RecordingBound { voiceStart :: Maybe Double, voiceEnd :: Maybe Double }
 
 timeChunk :: Double = 30.0 / 1000.0
 audioRate :: Double = 16000
@@ -121,11 +116,25 @@ debugPrint listener = do print "------------------------------"
                          print "voiceEnd:"
                          print (voiceEndTime listener)
 
+calcBoundary :: ListenerST -> [Bool] -> Double -> RecordingBound
+calcBoundary listener activations elapsed = 
+    let numberOn :: Int = countOn activations
+        sampleCount :: Int = countAll activations
+        percentOn :: Double =  fromIntegral numberOn / fromIntegral sampleCount
+        percentOff = 1.0 - percentOn
+        start = if (percentOn > thresholdPurportion) && isNothing (voiceStartTime listener)
+            then Just (timeOffset listener)
+            else voiceStartTime listener   --if there's already a value, don't overwrite it
+        end = if isJust start && (percentOn < thresholdPurportion) && isNothing (voiceEndTime listener)
+            then Just elapsed
+            else voiceEndTime listener   -- if there's already a value, don't overwrite it
+     in RecordingBound { voiceStart = start, voiceEnd = end}
+ 
+isComplete :: RecordingBound -> Bool
+isComplete bound = (isJust $ voiceStart bound) && (isJust $ voiceEnd bound)
 
 getWavST :: StateT ListenerST IO ()
 getWavST = do listener <- get
-              --liftIO$ print "Starting to listen !"
-              --liftIO $ debugPrint listener
               currentTime <- liftIO getCurrentTime
               src <- liftIO $ getWavFrom (path listener) (timeOffset listener) (segmentDuration listener)
               let length = DCA.framesToSeconds (frames src) audioRate
@@ -135,33 +144,21 @@ getWavST = do listener <- get
                   threshold = round $ thresholdPurportion * segmentDuration listener
                   ending = timeOffset listener + length
                   elapsed = if length >0 then ending else ending +1
-                  newpath = "./tmp/file" ++ show ending ++ ".wav"
               ss <- liftIO $ runResourceT $ samples $$ sinkList --get samples from conduit
               voiceDetected :: [Bool] <- liftIO $ detectVoice (vad listener) ss --voice tagging
-              let numberOn :: Int = countOn voiceDetected
-                  sampleCount :: Int = countAll voiceDetected
-                  percentOn :: Double =  fromIntegral numberOn / fromIntegral sampleCount
-                  percentOff = 1.0 - percentOn
-                  start = if (percentOn > thresholdPurportion) && isNothing (voiceStartTime listener)
-                             then Just (timeOffset listener)
-                             else voiceStartTime listener   --if there's already a value, don't overwrite it
-                  end = if isJust start && (percentOn < thresholdPurportion) && isNothing (voiceEndTime listener)
-                             then Just elapsed
-                             else voiceEndTime listener   -- if there's already a value, don't overwrite it
+              let boundary = calcBoundary listener voiceDetected elapsed
               put listener { 
-                              voiceStartTime = start, 
-                              voiceEndTime = end,
+                              voiceStartTime = voiceStart boundary, 
+                              voiceEndTime = voiceEnd boundary,
                               timeOffset = ending
                            }
-              if (isJust start && isJust end) && length >0
-                then do lst <- get
-                        liftIO$ print "sending audio!"
-                        --liftIO $ debugPrint lst
+              if isComplete boundary && length >0
+                then do liftIO$ print "sending audio!"
                         put listener { 
                                        voiceStartTime = Nothing, voiceEndTime = Nothing ,
                                        count = count listener + 1
                                      }
-                        liftIO $ writeWavMaybe (path listener) cap start end
+                        liftIO $ writeWavMaybe (path listener) cap (voiceStart boundary) (voiceEnd boundary)
                         transcript <- liftIO $ sendAudio cap
                         liftIO $ print transcript
                         getWavST
