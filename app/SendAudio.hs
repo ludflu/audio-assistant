@@ -15,8 +15,7 @@ getTranscript (Object response) = case AKM.lookup "text" response of
                                        _ -> "--------------"
 
 
-
-sendAudio:: FilePath -> IO Text
+sendAudio:: FilePath -> IO String
 sendAudio fp = runReq defaultHttpConfig $ do
   let part = LM.partFileSource "file" fp 
   body <- reqBodyMultipart [part]
@@ -27,4 +26,4 @@ sendAudio fp = runReq defaultHttpConfig $ do
       jsonResponse -- specify how to interpret response
       $ port 5000
   let response = responseBody r :: Value
-  return $ getTranscript response
+  return $ unpack $ getTranscript response

@@ -21,7 +21,9 @@ import Control.Monad
 import Control.Monad.State
 import Data.Maybe
 import SendAudio 
+import Actions
 import Data.Time.Clock
+import System.Process
 
 data ListenerST = ListenerST {
                                 path :: FilePath,
@@ -147,6 +149,9 @@ getWavST = do listener <- get
                         liftIO $ writeWavMaybe (path listener) capfilepath (voiceStart boundary) (voiceEnd boundary)
                         transcript <- liftIO $ sendAudio capfilepath
                         liftIO $ print transcript
+                        let r = findResponse transcript
+                            rr = fromMaybe "" r
+                        liftIO $ say rr
                         getWavST
                 else liftIO $ threadDelay 1000000 -- sleep 1 second
               getWavST
