@@ -48,6 +48,7 @@ executable vad-audio
                       aeson,
                       req,
                       http-client,
-                      time
+                      time,
+                      text
     hs-source-dirs:   app
     default-language: Haskell2010

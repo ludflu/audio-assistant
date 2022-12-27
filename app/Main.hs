@@ -124,8 +124,8 @@ debugPrint listener = do print "------------------------------"
 
 getWavST :: StateT ListenerST IO ()
 getWavST = do listener <- get
-              liftIO$ print "Starting to listen !"
-              liftIO $ debugPrint listener
+              --liftIO$ print "Starting to listen !"
+              --liftIO $ debugPrint listener
               currentTime <- liftIO getCurrentTime
               src <- liftIO $ getWavFrom (path listener) (timeOffset listener) (segmentDuration listener)
               let length = DCA.framesToSeconds (frames src) audioRate
@@ -156,13 +156,14 @@ getWavST = do listener <- get
               if (isJust start && isJust end) && length >0
                 then do lst <- get
                         liftIO$ print "sending audio!"
-                        liftIO $ debugPrint lst
+                        --liftIO $ debugPrint lst
                         put listener { 
                                        voiceStartTime = Nothing, voiceEndTime = Nothing ,
                                        count = count listener + 1
                                      }
                         liftIO $ writeWavMaybe (path listener) cap start end
-                        liftIO $ sendAudio cap
+                        transcript <- liftIO $ sendAudio cap
+                        liftIO $ print transcript
                         getWavST
                 else liftIO $ threadDelay 1000000 -- sleep 1 second
               getWavST
