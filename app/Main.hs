@@ -129,8 +129,7 @@ getWavST = do listener <- get
               let length = DCA.framesToSeconds (frames src) audioRate
                   capfilepath = "tmp/capture" ++ show (count listener) ++ ".wav"
                   samples = DCA.source src
-                  additionalOffset :: Double = realToFrac $ nominalDiffTimeToSeconds $  diffUTCTime currentTime (startTime listener)
-                  threshold = round $ thresholdPurportion * segmentDuration listener
+                  --threshold = round $ thresholdPurportion * segmentDuration listener
                   ending = timeOffset listener + length
                   elapsed = if length >0 then ending else ending +1
               ss <- liftIO $ runResourceT $ samples $$ sinkList --get samples from conduit
