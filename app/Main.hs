@@ -174,9 +174,6 @@ main = do currentTime <- getCurrentTime
               count = 0
             }
 
-          (se, ls) <- runStateT getWavST initialState  
-          _ <- print  "---------------------------------------------------"
-          _ <- print $ show (voiceStartTime ls)
-          _ <- print $ show (voiceEndTime ls)
+          runStateT getWavST initialState  
 
           return ()
