@@ -49,6 +49,8 @@ executable vad-audio
                       req,
                       http-client,
                       time,
+                      timezone-olson,
+                      timezone-series,
                       text,
                       process,
                       containers
