@@ -2,11 +2,20 @@
 
 module SendAudio (sendAudio) where
 
-import Control.Monad.IO.Class
-import Data.Aeson
+import Control.Monad.IO.Class ()
+import Data.Aeson ( Value(Object, String) )
 import Network.HTTP.Req
+    ( defaultHttpConfig,
+      http,
+      jsonResponse,
+      port,
+      req,
+      reqBodyMultipart,
+      responseBody,
+      runReq,
+      POST(POST) )
 import qualified Network.HTTP.Client.MultipartFormData as LM
-import Data.Text
+import Data.Text ( Text, unpack )
 import qualified Data.Aeson.KeyMap as AKM
 
 getTranscript :: Value -> Text

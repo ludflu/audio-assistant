@@ -10,14 +10,29 @@ import System.Process
 import qualified Data.Map as M
 import Data.Maybe
 
-import Data.Char (toUpper)
+import Data.Time.Clock ( UTCTime, getCurrentTime )
+import Data.Time.LocalTime
 
+import Data.Char ( isSpace, isUpper, toUpper )
+
+import SayDateTime
+
+import Data.Time                             -- package "time"
+import Data.Time.Calendar.WeekDate           -- package "time"
+import Data.Time.LocalTime.TimeZone.Olson    -- package "timezone-olson"
+import Data.Time.LocalTime.TimeZone.Series
+
+command :: FilePath
 command = "/home/jsnavely/project/audio-take-two/player/talk.sh"
 
+responses :: M.Map String (IO String)
 responses = M.fromList [ 
-    ("hello computer", "Hello Jim"),
-    ("peace be with you","And also with you")
+    ("hello computer", return "Hello Jim"),
+    ("peace be with you", return "And also with you"),
+    ("computer what time is it",  currentTime),
+    ("computer what day is it",  currentDay)
                        ]
+capitalise :: [Char] -> [Char]
 capitalise = map toUpper
 
 quote :: String -> String
@@ -33,16 +48,21 @@ say msg = let quoted = quote msg
 sayHello :: String -> IO String
 sayHello name = say $ "hello there " ++ name
 
+dropNonLetters :: String -> String
+dropNonLetters = filter (\x -> isUpper x || isSpace x)
+
 fuzzyMatch :: String -> String -> Bool
 fuzzyMatch haystack needle = let h = capitalise haystack
                                  n = capitalise needle
-                              in isInfixOf n h
+                                 hh = dropNonLetters h
+                              in isInfixOf n hh
 
-dispatch :: M.Map String String -> String -> Maybe String
-dispatch responses query = let predicate = \(a,b) -> fuzzyMatch query a
+dispatch :: M.Map String (IO String) -> String -> Maybe (IO String)
+dispatch responses query = let predicate (a,b) = fuzzyMatch query a
                                candidates = M.toList responses 
                                match = find predicate candidates
                             in fmap snd match
 
-findResponse :: String -> Maybe String
-findResponse q = dispatch responses q
+findResponse :: String -> Maybe (IO String)
+findResponse = dispatch responses 
+                 
