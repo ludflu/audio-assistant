@@ -13,7 +13,7 @@ import Data.Maybe
 import Data.Time.Clock ( UTCTime, getCurrentTime )
 import Data.Time.LocalTime
 
-import Data.Char ( isSpace, isLower, toUpper )
+import Data.Char ( isSpace, isUpper, toUpper )
 
 
 command :: FilePath
@@ -54,7 +54,7 @@ sayHello :: String -> IO String
 sayHello name = say $ "hello there " ++ name
 
 dropNonLetters :: String -> String
-dropNonLetters = filter (\x -> isLower x || isSpace x)
+dropNonLetters = filter (\x -> isUpper x || isSpace x)
 
 fuzzyMatch :: String -> String -> Bool
 fuzzyMatch haystack needle = let h = capitalise haystack

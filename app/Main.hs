@@ -173,6 +173,8 @@ getWavST = do listener <- get
                         liftIO $ print transcript
                         let r = findResponse transcript
                         rr <- liftIO $ fromMaybe (return "") r
+                        liftIO $ print "response:"
+                        liftIO $ print rr
                         liftIO $ say rr
                         getWavST
                 else liftIO $ threadDelay 1000000 -- sleep 1 second
