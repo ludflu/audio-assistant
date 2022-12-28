@@ -5,24 +5,42 @@
 
 module Main where
 
-import Numeric
+import Numeric ( showFFloat )
 import Conduit
+    ( MonadIO(liftIO),
+      PrimMonad(PrimState),
+      sinkList,
+      ($$),
+      runResourceT,
+      MonadResource )
 import Data.Conduit.Audio as DCA
+    ( framesToSeconds,
+      integralSample,
+      mapSamples,
+      reorganize,
+      splitChannels,
+      takeStart,
+      AudioSource(source, frames),
+      Duration(Seconds),
+      Frames )
 import Data.Conduit.Audio.Sndfile
+    ( sinkSnd, sourceSnd, sourceSndFrom )
 import Data.Conduit.Audio.SampleRate
 import qualified Sound.File.Sndfile as Snd
-import Control.Concurrent
+import Control.Concurrent ( threadDelay )
 import Sound.VAD.WebRTC as Vad
+    ( create, process, validRateAndFrameLength, VAD )
 import qualified Data.Vector.Storable as V
 import qualified Data.Conduit.List as CL
-import Control.Monad.ST
+import Control.Monad.ST ( RealWorld )
 import Data.Int (Int16)
 import Control.Monad
 import Control.Monad.State
-import Data.Maybe
-import SendAudio 
-import Actions
-import Data.Time.Clock
+    ( StateT(runStateT), MonadState(put, get) )
+import Data.Maybe ( fromMaybe, isJust, isNothing )
+import SendAudio ( sendAudio ) 
+import Actions ( say, findResponse )
+import Data.Time.Clock ( UTCTime, getCurrentTime )
 import System.Process
 
 data ListenerST = ListenerST {
@@ -38,9 +56,13 @@ data ListenerST = ListenerST {
                               }
 data RecordingBound = RecordingBound { voiceStart :: Maybe Double, voiceEnd :: Maybe Double }
 
+timeChunk :: Double
 timeChunk :: Double = 30.0 / 1000.0
+audioRate :: Double
 audioRate :: Double = 16000
+thresholdPurportion :: Double
 thresholdPurportion :: Double = 0.55 -- 55% of the samples should be on or off to turn on recording (splice out for recognition)
+workingChunkSize :: Frames
 workingChunkSize :: Frames = round $ audioRate * timeChunk
 
 printSamples :: [V.Vector Int16] -> [Int]
@@ -150,14 +172,12 @@ getWavST = do listener <- get
                         transcript <- liftIO $ sendAudio capfilepath
                         liftIO $ print transcript
                         let r = findResponse transcript
-                            rr = fromMaybe "" r
+                        rr <- liftIO $ fromMaybe (return "") r
                         liftIO $ say rr
                         getWavST
                 else liftIO $ threadDelay 1000000 -- sleep 1 second
               getWavST
 
-
-isValidRateAndFrame = Vad.validRateAndFrameLength (round audioRate) workingChunkSize
 
 main :: IO ()
 main = do currentTime <- getCurrentTime
@@ -177,5 +197,4 @@ main = do currentTime <- getCurrentTime
             }
 
           runStateT getWavST initialState  
-
           return ()
