@@ -21,6 +21,7 @@ import Data.Time                             -- package "time"
 import Data.Time.Calendar.WeekDate           -- package "time"
 import Data.Time.LocalTime.TimeZone.Olson    -- package "timezone-olson"
 import Data.Time.LocalTime.TimeZone.Series
+import qualified Data.Text as T
 
 command :: FilePath
 command = "/home/jsnavely/project/audio-take-two/player/talk.sh"
@@ -29,15 +30,21 @@ responses :: M.Map String (IO String)
 responses = M.fromList [ 
     ("hello computer", return "Hello Jim"),
     ("peace be with you", return "And also with you"),
+    ("computer what am I thinking", return "how would I know that?"),
+    ("youre doing pretty well", return "Thank you. I appreciate that."),
+    ("I love you computer", return "I love you too!"),
     ("computer what time is it",  currentTime),
     ("computer what day is it",  currentDay)
                        ]
 capitalise :: [Char] -> [Char]
 capitalise = map toUpper
 
+trim :: String -> String
+trim s = T.unpack $ T.strip $ T.pack s
+
 quote :: String -> String
 quote t = let q = "\"" 
-           in q <> t <> q
+           in q <> (trim t) <> q
 
 say :: String -> IO String
 say msg = let quoted = quote msg
