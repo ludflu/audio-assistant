@@ -116,6 +116,12 @@ getStartEnd start end = do s <- start
                            e <- end
                            return (s,e)
 
+
+calcDuration :: ListenerST -> Maybe Double
+calcDuration listener = let se = getStartEnd (voiceEndTime listener) (voiceStartTime listener)
+                            sub = uncurry (-)
+                         in fmap sub se
+ 
 debugPrint :: ListenerST -> IO ()
 debugPrint listener = do print "------------------------------"
                          print "count:"
@@ -128,6 +134,8 @@ debugPrint listener = do print "------------------------------"
                          print (voiceStartTime listener)
                          print "voiceEnd:"
                          print (voiceEndTime listener)
+                         print "duration:"
+                         print $ calcDuration listener
 
 calcBoundary :: ListenerST -> [Bool] -> Double -> RecordingBound
 calcBoundary listener activations elapsed = 
@@ -144,6 +152,18 @@ calcBoundary listener activations elapsed =
  
 isComplete :: RecordingBound -> Bool
 isComplete bound = isJust (voiceStart bound) && isJust (voiceEnd bound)
+
+resetVoiceBounds :: StateT ListenerST IO ()
+resetVoiceBounds = do listener <- get
+                      put listener { 
+                                     voiceStartTime = Nothing, voiceEndTime = Nothing ,
+                                      count = count listener + 1
+                                   }
+                      return ()
+ 
+maybeSubtract :: Double -> Maybe Double -> Maybe Double
+maybeSubtract s (Just n) = Just (n-s)
+maybeSubtract s Nothing = Nothing
 
 getWavST :: StateT ListenerST IO ()
 getWavST = do listener <- get
@@ -163,19 +183,20 @@ getWavST = do listener <- get
                               timeOffset = ending
                            }
               if isComplete boundary && length >0
-                then do liftIO$ print "sending audio!"
-                        put listener { 
-                                       voiceStartTime = Nothing, voiceEndTime = Nothing ,
-                                       count = count listener + 1
-                                     }
-                        liftIO $ writeWavMaybe (path listener) capfilepath (voiceStart boundary) (voiceEnd boundary)
+                then do liftIO $ print "sending audio!"
+                        liftIO $ debugPrint listener
+                        let bkupStart = maybeSubtract 0.5 (voiceStart boundary)
+                        liftIO $ writeWavMaybe (path listener) capfilepath bkupStart (voiceEnd boundary)
+                        resetVoiceBounds
                         transcript <- liftIO $ sendAudio capfilepath
                         liftIO $ print transcript
                         let r = findResponse transcript
                         rr <- liftIO $ fromMaybe (return "") r
                         liftIO $ print "response:"
                         liftIO $ print rr
-                        liftIO $ say rr
+                        liftIO $ if isJust r
+                                    then say rr
+                                    else return "nothing to say"
                         getWavST
                 else liftIO $ threadDelay 1000000 -- sleep 1 second
               getWavST

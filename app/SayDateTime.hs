@@ -49,14 +49,14 @@ currentDay = do localTime <- getLocalTime
                     (yr, mn, dom) = toGregorian day
                     (_,  wk, dow) = toWeekDate day
                     formatDay :: String =  getMonthString mn ++ " " ++ show dom ++ ", " ++ show yr 
-                return formatDay
+                return $ "Today is " ++ formatDay
 
 currentTime :: IO String
 currentTime = do localTime <- getLocalTime
                  let timeOfDay = localTimeOfDay localTime
                      hour = show $ (todHour timeOfDay) `mod` 12
                      minutes = show $ todMin timeOfDay
-                     theTime = hour ++ " " ++ minutes
-                 return theTime
+                     theTime = hour ++ ":" ++ minutes
+                 return $ "The time is " ++ theTime
 
 
