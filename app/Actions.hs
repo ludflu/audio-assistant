@@ -25,6 +25,7 @@ import Data.Time.LocalTime.TimeZone.Series
 import qualified Data.Text as T
 import Text.Regex.PCRE.Heavy
 import Data.String.Conversions
+import Data.Traversable
 
 command :: FilePath
 command = "/home/jsnavely/project/vad-audio/talk.sh"
@@ -34,7 +35,6 @@ greet params = "Hello " ++ head params ++ " its nice to meet you"
 
 regexResponses :: M.Map Regex ([String] -> IO String)
 regexResponses = M.fromList [ 
-    ( [re|hello computer|] , \x -> return "Hello Jim"),
     ( [re|computer my name is (.*)|] , \x -> return $ greet x),
     ( [re|computer what time is it|],  \x -> currentTime),
     ( [re|computer what day is it|],  \x -> currentDay),
@@ -81,5 +81,5 @@ dispatchRegex responses query = let q = dropNonLetters $ lowerCase query
                                                    return $ respFunc onlyFst
                                  in maybeFunc 
 
-findResponseRegex :: String -> Maybe (IO String)
-findResponseRegex = dispatchRegex regexResponses
+findResponseRegex :: String -> IO (Maybe String)
+findResponseRegex query = sequence $ dispatchRegex regexResponses query
