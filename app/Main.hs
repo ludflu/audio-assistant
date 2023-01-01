@@ -95,14 +95,10 @@ getWavFrom fp start dur = do src <- sourceSndFrom (Seconds start) fp
                                  timelimited = takeStart (Seconds dur) reorged
                              return $ convertIntegral timelimited
 
-
-writeWavMaybe :: FilePath -> FilePath -> Maybe Double -> Maybe Double -> IO ()
-writeWavMaybe oldPath newPath start end =
-    let startEnd = getStartEnd start end
-     in case startEnd of 
-        Nothing -> return ()
-        Just (_start, _end) -> do src <- getWavFrom oldPath _start (_end-_start)
-                                  runResourceT $ sinkSnd newPath myformat src
+writeBoundedWave :: FilePath -> FilePath -> Double -> Double -> IO ()
+writeBoundedWave oldPath newPath start end =
+    do src <- getWavFrom oldPath start (end-start)
+       runResourceT $ sinkSnd newPath myformat src
 
 
 countTrue :: [Bool] -> Int
@@ -161,10 +157,12 @@ resetVoiceBounds = do listener <- get
                                    }
                       return ()
  
-maybeSubtract :: Double -> Maybe Double -> Maybe Double
-maybeSubtract s (Just n) = Just (n-s)
-maybeSubtract s Nothing = Nothing
---maybeSubtract s maybenum = fmap (- s) maybenum
+-- repeatedly reads from the capture file, looking for voice boundaries (start and stop)
+-- when we find a voice boundary, we splice off that chunk of audio 
+-- and send it to the voice recognition API (OpenAI whisper)
+-- then we regex match the recognized voice text against possible known queries
+-- and if it matches a known question, we generate an answer
+-- and send it to the voice synthesis module
 
 getWavST :: StateT ListenerST IO ()
 getWavST = do listener <- get
@@ -183,42 +181,36 @@ getWavST = do listener <- get
                               voiceEndTime = voiceEnd boundary,
                               timeOffset = ending
                            }
+              listener <- get
               if isComplete boundary && length >0
-                then do liftIO $ debugPrint listener
-                        let bkupStart = maybeSubtract 0.5 (voiceStart boundary)
-                        liftIO $ writeWavMaybe (path listener) capfilepath bkupStart (voiceEnd boundary)
+                then do liftIO $ do debugPrint listener
+                                    let se = getStartEnd (voiceStart boundary) (voiceEnd boundary)
+                                        (start,end) = fromMaybe (0.0,0.0) se  -- this default should never happen
+                                    writeBoundedWave (path listener) capfilepath (start-0.5) end
+                                    transcript <- sendAudio capfilepath
+                                    response <- findResponseRegex transcript
+                                    mapM_ say response
                         resetVoiceBounds
-                        transcript <- liftIO $ sendAudio capfilepath
-                        liftIO $ print transcript
-                        --let r = findResponse transcript
-                        let r = findResponseRegex transcript
-                        rr <- liftIO $ fromMaybe (return "") r
-                        liftIO $ print "response:"
-                        liftIO $ print rr
-                        liftIO $ if isJust r
-                                    then say rr
-                                    else return "nothing to say"
                         getWavST
                 else liftIO $ threadDelay 1000000 -- sleep 1 second
               getWavST
 
+initialState currentTime vad = ListenerST { 
+  startTime = currentTime,
+  path = "in.wav", 
+  timeOffset=0.0, 
+  segmentDuration=2.0, 
+  limit=30.0, 
+  vad=vad, 
+  voiceStartTime = Nothing,
+  voiceEndTime = Nothing,
+  count = 0
+}
 
 main :: IO ()
 main = do currentTime <- getCurrentTime
           print "vad-listener start"
           print currentTime
           vad <- Vad.create
-          let initialState = ListenerST { 
-              startTime = currentTime,
-              path = "in.wav", 
-              timeOffset=0.0, 
-              segmentDuration=2.0, 
-              limit=30.0, 
-              vad=vad, 
-              voiceStartTime = Nothing,
-              voiceEndTime = Nothing,
-              count = 0
-            }
-
-          runStateT getWavST initialState  
+          runStateT getWavST (initialState currentTime vad)
           return ()
