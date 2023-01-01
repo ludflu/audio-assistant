@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ExtendedDefaultRules #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE QuasiQuotes, FlexibleContexts #-}
 
 module Actions where
 
@@ -13,7 +14,7 @@ import Data.Maybe
 import Data.Time.Clock ( UTCTime, getCurrentTime )
 import Data.Time.LocalTime
 
-import Data.Char ( isSpace, isUpper, toUpper )
+import Data.Char ( isSpace, isLower, toLower)
 
 import SayDateTime
 
@@ -22,22 +23,26 @@ import Data.Time.Calendar.WeekDate           -- package "time"
 import Data.Time.LocalTime.TimeZone.Olson    -- package "timezone-olson"
 import Data.Time.LocalTime.TimeZone.Series
 import qualified Data.Text as T
+import Text.Regex.PCRE.Heavy
+import Data.String.Conversions
 
 command :: FilePath
-command = "/home/jsnavely/project/audio-take-two/player/talk.sh"
+command = "/home/jsnavely/project/vad-audio/talk.sh"
 
-responses :: M.Map String (IO String)
-responses = M.fromList [ 
-    ("hello computer", return "Hello Jim"),
-    ("peace be with you", return "And also with you"),
-    ("computer what am I thinking", return "how would I know that?"),
-    ("youre doing pretty well", return "Thank you. I appreciate that."),
-    ("I love you computer", return "I love you too!"),
-    ("computer what time is it",  currentTime),
-    ("computer what day is it",  currentDay)
-                       ]
-capitalise :: [Char] -> [Char]
-capitalise = map toUpper
+greet :: [String] -> String
+greet params = "Hello " ++ head params ++ " its nice to meet you"
+
+regexResponses :: M.Map Regex ([String] -> IO String)
+regexResponses = M.fromList [ 
+    ( [re|hello computer|] , \x -> return "Hello Jim"),
+    ( [re|computer my name is (.*)|] , \x -> return $ greet x),
+    ( [re|computer what time is it|],  \x -> currentTime),
+    ( [re|computer what day is it|],  \x -> currentDay),
+    ( [re|i love you computer|], \x -> return "I love you too!")
+                            ]
+
+lowerCase :: [Char] -> [Char]
+lowerCase = map toLower
 
 trim :: String -> String
 trim s = T.unpack $ T.strip $ T.pack s
@@ -56,20 +61,25 @@ sayHello :: String -> IO String
 sayHello name = say $ "hello there " ++ name
 
 dropNonLetters :: String -> String
-dropNonLetters = filter (\x -> isUpper x || isSpace x)
+dropNonLetters = filter (\x -> isLower x || isSpace x)
 
-fuzzyMatch :: String -> String -> Bool
-fuzzyMatch haystack needle = let h = capitalise haystack
-                                 n = capitalise needle
-                                 hh = dropNonLetters h
-                              in isInfixOf n hh
 
-dispatch :: M.Map String (IO String) -> String -> Maybe (IO String)
-dispatch responses query = let predicate (a,b) = fuzzyMatch query a
-                               candidates = M.toList responses 
-                               match = find predicate candidates
-                            in fmap snd match
+isMatch :: String -> Regex -> Bool
+isMatch s r = (length (scan r s)) > 0
 
-findResponse :: String -> Maybe (IO String)
-findResponse = dispatch responses 
-                 
+fuzzyMatch :: String -> Regex -> [ (String, [String])]
+fuzzyMatch s r = scan r s
+
+dispatchRegex :: M.Map Regex ([String] -> IO String) -> String -> Maybe (IO String)
+dispatchRegex responses query = let q = dropNonLetters $ lowerCase query
+                                    predicate (rgx,_)  = isMatch q rgx
+                                    candidates = M.toList responses
+                                    maybeFunc = do (regx,respFunc) <- find predicate candidates
+                                                   let matches = fuzzyMatch q regx
+                                                       onlyMtchs = map snd matches
+                                                       onlyFst = map head onlyMtchs
+                                                   return $ respFunc onlyFst
+                                 in maybeFunc 
+
+findResponseRegex :: String -> Maybe (IO String)
+findResponseRegex = dispatchRegex regexResponses

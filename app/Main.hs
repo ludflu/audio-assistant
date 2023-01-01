@@ -39,7 +39,7 @@ import Control.Monad.State
     ( StateT(runStateT), MonadState(put, get) )
 import Data.Maybe ( fromMaybe, isJust, isNothing )
 import SendAudio ( sendAudio ) 
-import Actions ( say, findResponse )
+import Actions ( say, findResponseRegex )
 import Data.Time.Clock ( UTCTime, getCurrentTime )
 import System.Process
 
@@ -164,6 +164,7 @@ resetVoiceBounds = do listener <- get
 maybeSubtract :: Double -> Maybe Double -> Maybe Double
 maybeSubtract s (Just n) = Just (n-s)
 maybeSubtract s Nothing = Nothing
+--maybeSubtract s maybenum = fmap (- s) maybenum
 
 getWavST :: StateT ListenerST IO ()
 getWavST = do listener <- get
@@ -183,14 +184,14 @@ getWavST = do listener <- get
                               timeOffset = ending
                            }
               if isComplete boundary && length >0
-                then do liftIO $ print "sending audio!"
-                        liftIO $ debugPrint listener
+                then do liftIO $ debugPrint listener
                         let bkupStart = maybeSubtract 0.5 (voiceStart boundary)
                         liftIO $ writeWavMaybe (path listener) capfilepath bkupStart (voiceEnd boundary)
                         resetVoiceBounds
                         transcript <- liftIO $ sendAudio capfilepath
                         liftIO $ print transcript
-                        let r = findResponse transcript
+                        --let r = findResponse transcript
+                        let r = findResponseRegex transcript
                         rr <- liftIO $ fromMaybe (return "") r
                         liftIO $ print "response:"
                         liftIO $ print rr
