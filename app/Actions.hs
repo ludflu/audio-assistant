@@ -28,7 +28,7 @@ import Data.String.Conversions
 import Data.Traversable
 import Listener
 command :: FilePath
-command = "/home/jsnavely/project/vad-audio/talk.sh"
+command = "/home/jsnavely/project/vad-audio/scripts/talk.sh"
 
 greet :: [String] -> String
 greet params = "Hello " ++ head params ++ " its nice to meet you"
