@@ -11,7 +11,7 @@ At some point it would be nice to upgrade to a more modern system.
 ## Voice Recognition API
 
 OpenAI's Whisper model is used to recognize incoming audio and transform it to text.
-A simple wrapper API is provided, but other API's could be used instead.
+A [simple wrapper API]([https://gitlab.com/ludflu/whisper-asr) is provided, but other API's could be used instead.
 
 ## Audio Processing
 
