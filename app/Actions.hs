@@ -22,11 +22,12 @@ import Data.Time                             -- package "time"
 import Data.Time.Calendar.WeekDate           -- package "time"
 import Data.Time.LocalTime.TimeZone.Olson    -- package "timezone-olson"
 import Data.Time.LocalTime.TimeZone.Series
-import qualified Data.Text as T
 import Text.Regex.PCRE.Heavy
 import Data.String.Conversions
 import Data.Traversable
 import Listener
+import Guess
+
 command :: FilePath
 command = "/home/jsnavely/project/vad-audio/scripts/talk.sh"
 
@@ -38,27 +39,13 @@ regexResponses = M.fromList [
     ( [re|computer my name is (.*)|] , \x -> speak $ greet x),
     ( [re|computer what time is it|],  \x -> currentTime),
     ( [re|computer what day is it|],  \x -> currentDay),
+    ( [re|play the guessing game|],  \x -> guessingGame),
     ( [re|i love you computer|], \x -> speak "I love you too!")
                             ]
 
 lowerCase :: [Char] -> [Char]
 lowerCase = map toLower
 
-trim :: String -> String
-trim s = T.unpack $ T.strip $ T.pack s
-
-quote :: String -> String
-quote t = let q = "\"" 
-           in q <> (trim t) <> q
-
-say :: String -> IO String
-say msg = let quoted = quote msg
-              args = [quoted]
-              emptystr :: String = ""
-           in readProcess command args emptystr
-
-sayHello :: String -> IO String
-sayHello name = say $ "hello there " ++ name
 
 dropNonLetters :: String -> String
 dropNonLetters = filter (\x -> isLower x || isSpace x)
