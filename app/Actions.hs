@@ -26,19 +26,19 @@ import qualified Data.Text as T
 import Text.Regex.PCRE.Heavy
 import Data.String.Conversions
 import Data.Traversable
-
+import Listener
 command :: FilePath
 command = "/home/jsnavely/project/vad-audio/talk.sh"
 
 greet :: [String] -> String
 greet params = "Hello " ++ head params ++ " its nice to meet you"
 
-regexResponses :: M.Map Regex ([String] -> IO String)
+regexResponses :: M.Map Regex ([String] -> ListenerMonad String)
 regexResponses = M.fromList [ 
-    ( [re|computer my name is (.*)|] , \x -> return $ greet x),
+    ( [re|computer my name is (.*)|] , \x -> speak $ greet x),
     ( [re|computer what time is it|],  \x -> currentTime),
     ( [re|computer what day is it|],  \x -> currentDay),
-    ( [re|i love you computer|], \x -> return "I love you too!")
+    ( [re|i love you computer|], \x -> speak "I love you too!")
                             ]
 
 lowerCase :: [Char] -> [Char]
@@ -70,7 +70,7 @@ isMatch s r = (length (scan r s)) > 0
 fuzzyMatch :: String -> Regex -> [ (String, [String])]
 fuzzyMatch s r = scan r s
 
-dispatchRegex :: M.Map Regex ([String] -> IO String) -> String -> Maybe (IO String)
+dispatchRegex :: M.Map Regex ([String] -> ListenerMonad String) -> String -> Maybe (ListenerMonad String)
 dispatchRegex responses query = let q = dropNonLetters $ lowerCase query
                                     predicate (rgx,_)  = isMatch q rgx
                                     candidates = M.toList responses
@@ -81,5 +81,5 @@ dispatchRegex responses query = let q = dropNonLetters $ lowerCase query
                                                    return $ respFunc onlyFst
                                  in maybeFunc 
 
-findResponseRegex :: String -> IO (Maybe String)
+findResponseRegex :: String -> ListenerMonad (Maybe String)
 findResponseRegex query = sequence $ dispatchRegex regexResponses query
