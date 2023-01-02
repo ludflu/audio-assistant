@@ -20,18 +20,17 @@ we use the conduit-audio module to splice, resample and re-chunk.
 
 ## Desired actions
 
--[x] report the time
--[x] report the date
--[x] say hello
--[x] play the guessing game
--[ ] report the weather
--[ ] manage notes (CRUD + search)
--[ ] email someone
--[ ] manage contacts (CRUD + search)
--[ ] set reminders
--[ ] manage calendar items
--[ ] generic question answering based on sentence vector embeddings
-
+- [x] report the time
+- [x] report the date
+- [x] say hello
+- [x] play the guessing game
+- [ ] report the weather
+- [ ] manage notes (CRUD + search)
+- [ ] email someone
+- [ ] manage contacts (CRUD + search)
+- [ ] set reminders
+- [ ] manage calendar items
+- [ ] generic question answering based on sentence vector embeddings
 
 ## Building
 
