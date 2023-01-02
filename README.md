@@ -5,7 +5,7 @@ When a complete chunk is found, it is sent to a voice recognition API, and the r
 what action, if any, should be taken
 
 ## Voice Activity Detector
-Google's venerable open source package WebRTC VAD is used, and 30ms chunks of audio are sent at 16000hz
+Google's venerable [open source package WebRTC VAD](https://hackage.haskell.org/package/webrtc-vad) is used, and 30ms chunks of audio are sent at 16000hz
 At some point it would be nice to upgrade to a more modern system.
 
 ## Voice Recognition API
@@ -16,7 +16,7 @@ A [**simple wrapper API**](https://gitlab.com/ludflu/whisper-asr) is provided, b
 ## Audio Processing
 
 In order to deal with audio in a streaming fashion, without the need to read all the samples into memory,
-we use the conduit-audio module to splice, resample and re-chunk.
+we use the [conduit-audio](https://hackage.haskell.org/package/conduit-audio) module to splice, resample and re-chunk.
 
 ## Desired actions
 
