@@ -10,11 +10,11 @@ import Sound.VAD.WebRTC as Vad
 
 import Control.Monad.IO.Class
 import Control.Monad.ST ( RealWorld )
-import Control.Monad.Reader (ReaderT)
+import Control.Monad.Reader (ReaderT, runReaderT, ask, MonadReader)
 import Control.Monad.Except (ExceptT)
 import Control.Monad
 import Control.Monad.State
-    ( evalStateT, StateT(runStateT), MonadState(put, get), lift )
+    ( StateT, evalStateT, StateT(runStateT), MonadState(put, get), lift )
 
 
 import Data.Maybe ( fromMaybe, isJust, isNothing )
@@ -71,8 +71,8 @@ data ListenerState = ListenerState {
                                 count :: Int
                               }
 
-newtype ListenerMonad a = ListenerMonad (StateT ListenerState IO a)
-    deriving (Functor, Applicative, Monad, MonadIO )
+newtype ListenerMonad a = ListenerMonad (ReaderT EnvConfig (StateT ListenerState IO ) a)
+    deriving (Functor, Applicative, Monad, MonadIO, MonadReader EnvConfig )
 
 data RecordingBound = RecordingBound { voiceStart :: Maybe Double, voiceEnd :: Maybe Double }
 
@@ -81,11 +81,10 @@ audioRate :: Double = 16000
 thresholdPurportion :: Double = 0.55 -- 55% of the samples should be on or off to turn on recording (splice out for recognition)
 workingChunkSize :: Frames = round $ audioRate * timeChunk
 
+runListenerMonad :: ListenerMonad a -> EnvConfig -> ListenerState -> IO a
+runListenerMonad (ListenerMonad stateAction) envConfig listenerState =
+        evalStateT (runReaderT stateAction envConfig) listenerState
 
-runListenerMonad :: ListenerMonad a -> ListenerState -> IO a
-runListenerMonad  (ListenerMonad stateAction) listenerState = 
-    evalStateT stateAction listenerState 
- 
 instance MonadState ListenerState ListenerMonad where
   get = ListenerMonad get
   put = ListenerMonad . put
@@ -236,7 +235,8 @@ say :: String -> ListenerMonad String
 say msg = let quoted = quote msg
               args = [quoted]
               emptystr :: String = ""
-           in liftIO $ readProcess command args emptystr
+           in do config <- ask
+                 liftIO $ readProcess (command config) args emptystr
 
 trim :: String -> String
 trim s = T.unpack $ T.strip $ T.pack s
@@ -245,7 +245,7 @@ quote :: String -> String
 quote t = let q = "\"" 
            in q <> (trim t) <> q
 
-command :: FilePath
-command = "/home/jsnavely/project/vad-audio/scripts/talk.sh"
+command :: EnvConfig -> FilePath
+command config = localpath config  ++  "/scripts/talk.sh"
 
 
