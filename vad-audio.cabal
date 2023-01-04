@@ -56,7 +56,8 @@ executable vad-audio
                       containers,
                       pcre-heavy,
                       string-conversions,
-                      random
+                      random,
+                      directory
     hs-source-dirs:   app
     default-language: Haskell2010
     default-extensions:  QuasiQuotes, FlexibleContexts
