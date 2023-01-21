@@ -14,10 +14,10 @@ guess secret = do say "Guess the number: "
                   case guessedNumber of
                     Nothing -> do say "I couldn't understand you."
                                   guess secret
-                    Just gnum -> if (gnum > secret)
+                    Just gnum -> if gnum > secret
                                  then do say "Too high."
                                          guess secret
-                                 else if (gnum < secret)
+                                 else if gnum < secret
                                       then do say "Too low."
                                               guess secret
                                       else do say "You got it!"

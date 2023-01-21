@@ -38,6 +38,7 @@ regexResponses :: M.Map Regex ([String] -> ListenerMonad String)
 regexResponses = M.fromList [ 
     ( [re|computer my name is (.*)|] , \x -> speak $ greet x),
     ( [re|computer what time is it|],  \x -> currentTime),
+    ( [re|computer please stop|],  \x -> quitNow >> speak "Goodbye."),
     ( [re|computer what day is it|],  \x -> currentDay),
     ( [re|play the guessing game|],  \x -> guessingGame),
     ( [re|i love you computer|], \x -> speak "I love you too!")
@@ -67,6 +68,9 @@ dispatchRegex responses query = let q = dropNonLetters $ lowerCase query
                                                        onlyFst = map head onlyMtchs
                                                    return $ respFunc onlyFst
                                  in maybeFunc 
+
+
+
 
 findResponseRegex :: String -> ListenerMonad (Maybe String)
 findResponseRegex query = sequence $ dispatchRegex regexResponses query
