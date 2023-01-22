@@ -12,11 +12,10 @@ import Conduit
     sinkList,
     ($$),
   )
-import ConfigParser (EnvConfig, localpath)
+import ConfigParser (EnvConfig, sleepSeconds, localpath, audioRate, segmentDuration, debug, activationThreshold)
 import Control.Concurrent (threadDelay)
-import Control.Monad
 import Control.Monad.Except (ExceptT)
-import Control.Monad.IO.Class
+import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Reader (MonadReader, ReaderT, ask, runReaderT)
 import Control.Monad.ST (RealWorld)
 import Control.Monad.State
@@ -25,6 +24,7 @@ import Control.Monad.State
     evalStateT,
     lift,
   )
+import Control.Monad (when)
 import Data.Char (isNumber)
 import Data.Conduit.Audio as DCA
   ( AudioSource (frames, source),
@@ -37,7 +37,7 @@ import Data.Conduit.Audio as DCA
     splitChannels,
     takeStart,
   )
-import Data.Conduit.Audio.SampleRate
+import Data.Conduit.Audio.SampleRate ()
 import Data.Conduit.Audio.Sndfile
   ( sinkSnd,
     sourceSnd,
@@ -47,7 +47,6 @@ import qualified Data.Conduit.List as CL
 import Data.Int (Int16)
 import Data.Maybe (fromMaybe, isJust, isNothing)
 import qualified Data.Text as T
-import Data.Time.Clock (UTCTime)
 import qualified Data.Vector.Storable as V
 import Numeric (showFFloat)
 import SendAudio (sendAudio)
@@ -58,18 +57,17 @@ import Sound.VAD.WebRTC as Vad
     process,
     validRateAndFrameLength,
   )
-import System.Process
+import System.Process ( readProcess )
 import Text.Read (readMaybe)
 import Data.Time.Clock ( UTCTime, getCurrentTime )
-import Control.Concurrent.MVar
+import Control.Concurrent.MVar ( tryTakeMVar, MVar )
 
 data ListenerState = ListenerState
   { path :: FilePath,
-    startTime :: UTCTime,
+    startTime :: Data.Time.Clock.UTCTime,
     timeOffset :: Double,
     voiceStartTime :: Maybe Double,
     voiceEndTime :: Maybe Double,
-    segmentDuration :: Double,
     vad :: Vad.VAD RealWorld,
     count :: Int,
     quit :: Bool,
@@ -83,11 +81,8 @@ data RecordingBound = RecordingBound {voiceStart :: Maybe Double, voiceEnd :: Ma
 
 timeChunk :: Double = 30.0 / 1000.0
 
-audioRate :: Double = 16000
-
-thresholdPurportion :: Double = 0.55 -- 55% of the samples should be on or off to turn on recording (splice out for recognition)
-
-workingChunkSize :: Frames = round $ audioRate * timeChunk
+workingChunkSize :: Double -> Frames
+workingChunkSize rate = round $ rate * timeChunk
 
 runListenerMonad :: ListenerMonad a -> EnvConfig -> ListenerState -> IO a
 runListenerMonad (ListenerMonad stateAction) envConfig listenerState =
@@ -97,13 +92,12 @@ instance MonadState ListenerState ListenerMonad where
   get = ListenerMonad get
   put = ListenerMonad . put
 
-initialState :: UTCTime -> VAD RealWorld -> MVar String -> ListenerState
+initialState :: Data.Time.Clock.UTCTime -> VAD RealWorld -> MVar String -> ListenerState
 initialState currentTime vad wasAudioReset =
   ListenerState
     { startTime = currentTime,
       path = "in0.wav",
       timeOffset = 0.0,
-      segmentDuration = 2.0,
       vad = vad,
       voiceStartTime = Nothing,
       voiceEndTime = Nothing,
@@ -128,27 +122,25 @@ speak :: a -> ListenerMonad a
 speak v = return v
 
 debugPrint :: ListenerState -> IO ()
-debugPrint listener = do
-  print "------------------------------"
-  print "count:"
-  print (count listener)
-  print "time offset:"
-  print (timeOffset listener)
-  print "duration:"
-  print (segmentDuration listener)
-  print "voiceStart:"
-  print (voiceStartTime listener)
-  print "voiceEnd:"
-  print (voiceEndTime listener)
-  print "duration:"
-  print $ calcDuration listener
-  print "path:"
-  print $ path listener
-
-detectVoice :: PrimMonad m => Vad.VAD (PrimState m) -> [V.Vector Int16] -> m [Bool]
-detectVoice vd ss =
-  let func s = Vad.process (round audioRate) s vd
-      validFrames = filter (\vs -> V.length vs == workingChunkSize) ss
+debugPrint listener = 
+  do print "------------------------------"
+     print "count:"
+     print (count listener)
+     print "time offset:"
+     print (timeOffset listener)
+     print "voiceStart:"
+     print (voiceStartTime listener)
+     print "voiceEnd:"
+     print (voiceEndTime listener)
+     print "duration:"
+     print $ calcDuration listener
+     print "path:"
+     print $ path listener
+  
+detectVoice :: PrimMonad m => Vad.VAD (PrimState m) -> [V.Vector Int16] -> Double -> m [Bool]
+detectVoice vd ss rate =
+  let func s = Vad.process (round rate) s vd
+      validFrames = filter (\vs -> V.length vs == workingChunkSize rate) ss
    in mapM func validFrames
 
 myformat :: Snd.Format
@@ -161,25 +153,25 @@ convertIntegral = DCA.mapSamples DCA.integralSample
 -- a single channel audio source,
 -- with pulses recorded as Int16s
 -- in chunks of 30 ms
-getWavFrom :: (MonadResource m) => FilePath -> Double -> Double -> IO (AudioSource m Int16)
-getWavFrom fp start dur = do
+getWavFrom :: (MonadResource m) => FilePath -> Double -> Double -> Double -> IO (AudioSource m Int16)
+getWavFrom fp start dur rate = do
   src <- sourceSndFrom (Seconds start) fp
   let split = DCA.splitChannels src -- we only want a single channel
-      reorged = DCA.reorganize workingChunkSize (head split)
+      reorged = DCA.reorganize (workingChunkSize rate) (head split)
       timelimited = takeStart (Seconds dur) reorged
   return $ convertIntegral timelimited
 
-writeBoundedWave :: FilePath -> FilePath -> Double -> Double -> IO ()
-writeBoundedWave oldPath newPath start end =
+writeBoundedWave :: FilePath -> FilePath -> Double -> Double -> Double-> IO ()
+writeBoundedWave oldPath newPath start end rate =
   do
-    src <- getWavFrom oldPath start (end - start)
+    src <- getWavFrom oldPath start (end - start) rate
     runResourceT $ sinkSnd newPath myformat src
 
 countTrue :: [Bool] -> Int
-countTrue items = length $ filter (== True) items
+countTrue items = length $ filter id items
 
-calcBoundary :: ListenerState -> [Bool] -> Double -> RecordingBound
-calcBoundary listener activations elapsed =
+calcBoundary :: ListenerState -> [Bool] -> Double -> Double -> RecordingBound
+calcBoundary listener activations elapsed thresholdPurportion =
   let numberOn :: Int = countTrue activations
       sampleCount :: Int = length activations
       percentOn :: Double = fromIntegral numberOn / fromIntegral sampleCount
@@ -208,15 +200,19 @@ resetVoiceBounds = do
   return ()
 
 dropNonNumbers :: String -> String
-dropNonNumbers = filter (\x -> isNumber x)
+dropNonNumbers = filter isNumber
 
 parseInt :: String -> Maybe Integer
 parseInt str = readMaybe $ dropNonNumbers str
 
 listenForInteger :: ListenerMonad (Maybe Integer)
-listenForInteger = do
-  line <- listen
-  return $ parseInt line
+listenForInteger = parseInt <$> listen
+
+getListenerState :: ListenerMonad ListenerState
+getListenerState = do listener <- get
+                      wasRecordingReset <- liftIO $ tryTakeMVar $ audioReset listener
+                      resetOffset wasRecordingReset 
+                      get
 
 -- repeatedly reads from the capture file, looking for voice boundaries (start and stop)
 -- when we find a voice boundary, we splice off that chunk of audio
@@ -224,21 +220,18 @@ listenForInteger = do
 -- then we return the string to the caller
 listen :: ListenerMonad String
 listen = do
-  listener <- get
-  wasRecordingReset <- liftIO $ tryTakeMVar $ audioReset listener
-  resetOffset wasRecordingReset 
-  listener <- get
-  liftIO $ debugPrint listener
-  src <- liftIO $ getWavFrom (path listener) (timeOffset listener) (segmentDuration listener)
-  config <- ask
-  let length = DCA.framesToSeconds (frames src) audioRate
-      capfilepath = localpath config ++ "/tmp/capture" ++ show (count listener) ++ ".wav"
+  listener <- getListenerState
+  env <- ask
+  when (debug env) (liftIO $ debugPrint listener)
+  src <- liftIO $ getWavFrom (path listener) (timeOffset listener) (segmentDuration env) (audioRate env)
+  let length = DCA.framesToSeconds (frames src) (audioRate env)
+      capfilepath = localpath env ++ "/tmp/capture" ++ show (count listener) ++ ".wav"
       samples = DCA.source src
       ending = timeOffset listener + length
       elapsed = if length > 0 then ending else ending + 1
   ss <- liftIO $ runResourceT $ samples $$ sinkList -- get samples from conduit
-  voiceDetected :: [Bool] <- liftIO $ detectVoice (vad listener) ss -- voice tagging
-  let boundary = calcBoundary listener voiceDetected elapsed
+  voiceDetected :: [Bool] <- liftIO $ detectVoice (vad listener) ss (audioRate env) -- voice tagging
+  let boundary = calcBoundary listener voiceDetected elapsed (activationThreshold env)
   put
     listener
       { voiceStartTime = voiceStart boundary,
@@ -249,16 +242,14 @@ listen = do
     then do
       resetVoiceBounds
       liftIO $ do
-        debugPrint listener
         let se = getStartEnd (voiceStart boundary) (voiceEnd boundary)
             (start, end) = fromMaybe (0.0, 0.0) se -- this default should never happen
-        writeBoundedWave (path listener) capfilepath (start - 0.25) end -- back up a 1/4 second to make sure we don't lose anything
+        writeBoundedWave (path listener) capfilepath (start - 0.25) end  (audioRate env)-- back up a 1/4 second to make sure we don't lose anything
         transcript <- sendAudio capfilepath
-        liftIO $ print "--------------------------"
-        liftIO $ print transcript
+        when (debug env) (liftIO $ print transcript)
         return transcript
     else do
-      liftIO $ threadDelay 500000 -- sleep .5 second
+      liftIO $ threadDelay $ round ((sleepSeconds env) * 1000000)
       listen
 
 resetOffset :: Maybe FilePath -> ListenerMonad ()
