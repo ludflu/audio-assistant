@@ -51,7 +51,7 @@ If you have NixOS you can use the provided default.nix
 ### OS X
 
 ```
-brew install zlib pulseaudio libsndfile libsamplerate libao pcre lame
+brew install zlib pulseaudio libsndfile libsamplerate libao pcre lame sox
 export CPATH=/opt/homebrew/include
 export LIBRARY_PATH=/opt/homebrew/lib
 cabal build
