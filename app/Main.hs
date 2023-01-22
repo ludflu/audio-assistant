@@ -40,10 +40,13 @@ run config = do currentTime <- getCurrentTime
                 print currentTime
                 print $ show config
                 vad <- Vad.create
-                let startState = initialState currentTime vad shouldReset
-                    _config = if localpath config == ""
+                let _config = if localpath config == ""
                         then config { localpath = currentWorkingDirectory}
                         else config
+                    outpath = if null $ wavpath config 
+                                 then currentWorkingDirectory
+                                 else wavpath config
+                    startState = initialState currentTime vad shouldReset (outpath ++ "/in0.wav")
                 recorderThread <- forkIO $ record _config shouldReset 0
                 threadDelay 1000000 -- wait one second for the recording thread to start
                 runListenerMonad commandLoop _config startState

@@ -12,7 +12,7 @@ import Conduit
     sinkList,
     ($$),
   )
-import ConfigParser (EnvConfig, sleepSeconds, localpath, audioRate, segmentDuration, debug, activationThreshold)
+import ConfigParser (EnvConfig, sleepSeconds, localpath, audioRate, segmentDuration, debug, activationThreshold, wavpath)
 import Control.Concurrent (threadDelay)
 import Control.Monad.Except (ExceptT)
 import Control.Monad.IO.Class ( MonadIO(..) )
@@ -92,11 +92,11 @@ instance MonadState ListenerState ListenerMonad where
   get = ListenerMonad get
   put = ListenerMonad . put
 
-initialState :: Data.Time.Clock.UTCTime -> VAD RealWorld -> MVar String -> ListenerState
-initialState currentTime vad wasAudioReset =
+initialState :: Data.Time.Clock.UTCTime -> VAD RealWorld -> MVar String -> FilePath -> ListenerState
+initialState currentTime vad wasAudioReset initialPath =
   ListenerState
     { startTime = currentTime,
-      path = "in0.wav",
+      path = initialPath,
       timeOffset = 0.0,
       vad = vad,
       voiceStartTime = Nothing,
@@ -225,7 +225,9 @@ listen = do
   when (debug env) (liftIO $ debugPrint listener)
   src <- liftIO $ getWavFrom (path listener) (timeOffset listener) (segmentDuration env) (audioRate env)
   let length = DCA.framesToSeconds (frames src) (audioRate env)
-      capfilepath = localpath env ++ "/tmp/capture" ++ show (count listener) ++ ".wav"
+      capfilepath = if (null $ wavpath env)
+                      then localpath env ++ "/capture" ++ show (count listener) ++ ".wav"
+                      else wavpath env ++ "/capture" ++ show (count listener) ++ ".wav"
       samples = DCA.source src
       ending = timeOffset listener + length
       elapsed = if length > 0 then ending else ending + 1

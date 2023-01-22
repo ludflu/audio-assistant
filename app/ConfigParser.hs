@@ -4,7 +4,9 @@ import Options.Applicative
 import Data.Maybe
 
 data EnvConfig = EnvConfig 
-    { localpath :: FilePath, 
+    { 
+      localpath :: FilePath, 
+      wavpath :: FilePath, 
       recordingLength :: Int, 
       audioRate :: Double, 
       activationThreshold :: Double,
@@ -22,6 +24,11 @@ parseConfig = EnvConfig
             <> metavar "SCRIPT"
             <> value ""
             <> help "the path for the helper scripts that record and emit messages")
+    <*> strOption
+        (long "wavpath"
+            <> metavar "SCRIPT"
+            <> value ""
+            <> help "the path to write temporary audio splices")
     <*> option auto
           ( long "recordingLength"
          <> help "how long each recording should last (in seconds)"
