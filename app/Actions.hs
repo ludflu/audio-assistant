@@ -27,33 +27,31 @@ import Data.String.Conversions
 import Data.Traversable
 import Listener
 import Guess
-
-command :: FilePath
-command = "/home/jsnavely/project/vad-audio/scripts/talk.sh"
+import WeatherFetcher
 
 greet :: [String] -> String
 greet params = "Hello " ++ head params ++ " its nice to meet you"
 
 regexResponses :: M.Map Regex ([String] -> ListenerMonad String)
 regexResponses = M.fromList [ 
-    ( [re|computer my name is (.*)|] , \x -> speak $ greet x),
-    ( [re|computer what time is it|],  \x -> currentTime),
+    ( [re|computer my name is (.*)|] , speak . greet ),
+    ( [re|computer what time is it|],  const currentTime),
     ( [re|computer please stop|],  \x -> quitNow >> speak "Goodbye."),
-    ( [re|computer what day is it|],  \x -> currentDay),
-    ( [re|play the guessing game|],  \x -> guessingGame),
+    ( [re|computer what day is it|],  const currentDay),
+    ( [re|computer whats the weather|],  const $ getWeather "key" "19038" ),
+    
+    ( [re|play the guessing game|],  const guessingGame),
     ( [re|i love you computer|], \x -> speak "I love you too!")
                             ]
 
 lowerCase :: [Char] -> [Char]
 lowerCase = map toLower
 
-
 dropNonLetters :: String -> String
 dropNonLetters = filter (\x -> isLower x || isSpace x)
 
-
 isMatch :: String -> Regex -> Bool
-isMatch s r = (length (scan r s)) > 0
+isMatch s r = (length (scan r s)) >0
 
 fuzzyMatch :: String -> Regex -> [ (String, [String])]
 fuzzyMatch s r = scan r s

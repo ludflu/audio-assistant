@@ -38,6 +38,7 @@ run config = do currentTime <- getCurrentTime
                 shouldReset :: MVar FilePath <- newEmptyMVar
                 print "vad-listener start"
                 print currentTime
+                print $ show config
                 vad <- Vad.create
                 let startState = initialState currentTime vad shouldReset
                     _config = if localpath config == ""

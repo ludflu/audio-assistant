@@ -18,7 +18,7 @@ import Data.Time.Calendar.WeekDate           -- package "time"
 import Data.Time.LocalTime.TimeZone.Olson    -- package "timezone-olson"
 import Data.Time.LocalTime.TimeZone.Series
 
-import Listener 
+import Listener ( ListenerMonad, speak ) 
 
 import Control.Monad.State (liftIO)
 getLocalTime = do time <- getCurrentTime
@@ -54,9 +54,9 @@ currentDay = do localTime <- liftIO getLocalTime
                 speak $ "Today is " ++ formatDay
 
 currentTime :: ListenerMonad String
-currentTime = do localTime <- liftIO $ getLocalTime
+currentTime = do localTime <- liftIO getLocalTime
                  let timeOfDay = localTimeOfDay localTime
-                     hour = show $ (todHour timeOfDay) `mod` 12
+                     hour = show $ todHour timeOfDay `mod` 12
                      minutes = show $ todMin timeOfDay
                      theTime = hour ++ ":" ++ minutes
                  speak $ "The time is " ++ theTime
