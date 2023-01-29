@@ -51,7 +51,7 @@ dropNonLetters :: String -> String
 dropNonLetters = filter (\x -> isLower x || isSpace x)
 
 isMatch :: String -> Regex -> Bool
-isMatch s r = (length (scan r s)) >0
+isMatch s r = not (null (scan r s))
 
 fuzzyMatch :: String -> Regex -> [ (String, [String])]
 fuzzyMatch s r = scan r s

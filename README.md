@@ -60,3 +60,9 @@ cabal build
 ### GHC
 
 Tested with GHC 9.2.5, Cabal 3.6.2.0
+
+
+### Running
+
+`cabal run vad-audio -- --debug`
+

@@ -7,9 +7,11 @@ import System.Random
 import Listener
 import Control.Monad.State (liftIO)
 import Data.Maybe
+import Control.Concurrent (threadDelay)
 
 guess :: Integer -> ListenerMonad String
 guess secret = do say "Guess the number: "
+                  liftIO $ threadDelay 250000
                   guessedNumber <- listenForInteger
                   case guessedNumber of
                     Nothing -> do say "I couldn't understand you."

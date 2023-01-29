@@ -29,11 +29,11 @@ executable vad-audio
     main-is:          Main.hs
     ghc-options: -threaded -rtsopts
     -- Modules included in this executable, other than Main.
-    other-modules: SendAudio, 
-                   Actions, 
-                   SayDateTime, 
-                   Listener, 
-                   Guess, 
+    other-modules: SendAudio,
+                   Actions,
+                   SayDateTime,
+                   Listener,
+                   Guess,
                    ConfigParser,
                    RecordAudio
 
@@ -64,6 +64,7 @@ executable vad-audio
                       directory,
                       optparse-applicative,
                       unix
+                      --hs-weather-api
     hs-source-dirs:   app
     default-language: Haskell2010
     default-extensions:  QuasiQuotes, FlexibleContexts

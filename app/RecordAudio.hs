@@ -17,7 +17,7 @@ makeFname basepath count = basepath ++ "in" ++ show count ++ ".wav"
 
 record :: EnvConfig -> MVar FilePath -> Int -> IO ()
 record config reset count =
-  let outpath = if (null $ wavpath config) 
+  let outpath = if null $ wavpath config
                 then localpath config ++ "/"
                 else wavpath config ++ "/"
       audioLength = recordingLength config

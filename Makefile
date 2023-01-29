@@ -1,2 +1,6 @@
 app/Main.hs vad-audio:
-	cabal v2-build
+	source ~/.zshrc
+	cabal build
+
+run:
+	cabal run vad-audio -- --debug

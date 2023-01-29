@@ -21,19 +21,19 @@ parseConfig :: Parser EnvConfig
 parseConfig = EnvConfig 
     <$> strOption
         (long "scriptpath"
-            <> metavar "SCRIPT"
+            <> metavar "FILEPATH"
             <> value ""
             <> help "the path for the helper scripts that record and emit messages")
     <*> strOption
         (long "wavpath"
-            <> metavar "SCRIPT"
+            <> metavar "FILEPATH"
             <> value ""
             <> help "the path to write temporary audio splices")
     <*> option auto
           ( long "recordingLength"
          <> help "how long each recording should last (in seconds)"
          <> showDefault
-         <> value 600
+         <> value 120
          <> metavar "INT" )
     <*> option auto
           ( long "audioRate"
@@ -51,7 +51,7 @@ parseConfig = EnvConfig
     <*> option auto
           ( long "sleepSeconds"
          <> short 's'
-         <> help "the length of time to wait for a recording after looking for a boundard"
+         <> help "the length of time to wait for a recording after looking for a boundar7"
          <> showDefault
          <> value 0.5
          <> metavar "FLOAT" )

@@ -119,7 +119,7 @@ calcDuration listener =
    in fmap sub se
 
 speak :: a -> ListenerMonad a
-speak v = return v
+speak = return 
 
 debugPrint :: ListenerState -> IO ()
 debugPrint listener = 
@@ -225,7 +225,7 @@ listen = do
   when (debug env) (liftIO $ debugPrint listener)
   src <- liftIO $ getWavFrom (path listener) (timeOffset listener) (segmentDuration env) (audioRate env)
   let length = DCA.framesToSeconds (frames src) (audioRate env)
-      capfilepath = if (null $ wavpath env)
+      capfilepath = if null $ wavpath env
                       then localpath env ++ "/capture" ++ show (count listener) ++ ".wav"
                       else wavpath env ++ "/capture" ++ show (count listener) ++ ".wav"
       samples = DCA.source src
@@ -251,7 +251,7 @@ listen = do
         when (debug env) (liftIO $ print transcript)
         return transcript
     else do
-      liftIO $ threadDelay $ round ((sleepSeconds env) * 1000000)
+      liftIO $ threadDelay $ round (sleepSeconds env * 1000000)
       listen
 
 resetOffset :: Maybe FilePath -> ListenerMonad ()

@@ -16,7 +16,7 @@ import ConfigParser
 import Options.Applicative
 import RecordAudio (record)
 
-import Control.Concurrent
+import Control.Concurrent (threadDelay, killThread, forkIO)
 import Control.Concurrent.MVar
 
 -- get a user query, we regex match the recognized voice text against possible known queries
