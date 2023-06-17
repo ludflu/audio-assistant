@@ -48,7 +48,7 @@ run config = do currentTime <- getCurrentTime
                                  else wavpath config
                     startState = initialState currentTime vad shouldReset (outpath ++ "/in0.wav")
                 recorderThread <- forkIO $ record _config shouldReset 0
-                threadDelay 1000000 -- wait one second for the recording thread to start
+                threadDelay 2000000 -- wait one second for the recording thread to start
                 runListenerMonad commandLoop _config startState
                 print "ending program, killing recorder thread"
                 killThread recorderThread

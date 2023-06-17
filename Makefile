@@ -4,11 +4,11 @@ app/Main.hs vad-audio:
 	cabal build
 
 run:
-	cabal run vad-audio -- --debug
+	cabal clean
+	cabal run vad-audio -- --debug --recordingLength 300 --wavpath tmp
 
 dep:
 	sudo apt install pulseaudio
 	sudo apt install libpcre3 libpcre3-dev
 	sudo apt install zlib1g-dev libsndfile1-dev sndfile-tools libsamplerate-dev libmp3lame-dev
-
 
