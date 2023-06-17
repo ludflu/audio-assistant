@@ -27,6 +27,8 @@ import Data.String.Conversions
 import Data.Traversable
 import Listener
 import Guess
+import RecordNote
+
 import WeatherFetcher
 
 greet :: [String] -> String
@@ -39,8 +41,9 @@ regexResponses = M.fromList [
     ( [re|computer please stop|],  \x -> quitNow >> speak "Goodbye."),
     ( [re|computer what day is it|],  const currentDay),
     ( [re|computer whats the weather|],  const $ getWeather "key" "19038" ),
-    
     ( [re|play the guessing game|],  const guessingGame),
+    ( [re|record a note|],  const recordNote),
+    ( [re|read note|],  const readNote),
     ( [re|i love you computer|], \x -> speak "I love you too!")
                             ]
 
@@ -50,8 +53,12 @@ lowerCase = map toLower
 dropNonLetters :: String -> String
 dropNonLetters = filter (\x -> isLower x || isSpace x)
 
-isMatch :: String -> Regex -> Bool
-isMatch s r = not (null (scan r s))
+-- isYes :: String -> Bool
+-- isYes response = let r' = map toUpper response in
+--                      isMatch response [re|YES|AFFIRMATIVE|]
+
+-- isMatch :: String -> Regex -> Bool
+-- isMatch s r = not (null (scan r s))
 
 fuzzyMatch :: String -> Regex -> [ (String, [String])]
 fuzzyMatch s r = scan r s

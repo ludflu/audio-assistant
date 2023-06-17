@@ -1,6 +1,8 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE QuasiQuotes, FlexibleContexts #-}
+
 
 module Listener where
 
@@ -61,6 +63,9 @@ import System.Process ( readProcess )
 import Text.Read (readMaybe)
 import Data.Time.Clock ( UTCTime, getCurrentTime )
 import Control.Concurrent.MVar ( tryTakeMVar, MVar )
+import Text.Regex.PCRE.Heavy
+import Data.Char ( toLower)
+
 
 data ListenerState = ListenerState
   { path :: FilePath,
@@ -174,13 +179,15 @@ calcBoundary :: ListenerState -> [Bool] -> Double -> Double -> RecordingBound
 calcBoundary listener activations elapsed thresholdPurportion =
   let numberOn :: Int = countTrue activations
       sampleCount :: Int = length activations
+      numberOff :: Int = sampleCount - numberOn
       percentOn :: Double = fromIntegral numberOn / fromIntegral sampleCount
+      percentOff :: Double = fromIntegral numberOff / fromIntegral sampleCount
       start =
         if (percentOn > thresholdPurportion) && isNothing (voiceStartTime listener)
           then Just (timeOffset listener)
           else voiceStartTime listener -- if there's already a value, don't overwrite it
       end =
-        if isJust start && (percentOn < thresholdPurportion) && isNothing (voiceEndTime listener)
+        if isJust start && (percentOff > thresholdPurportion) && isNothing (voiceEndTime listener)
           then Just elapsed
           else voiceEndTime listener -- if there's already a value, don't overwrite it
    in RecordingBound {voiceStart = start, voiceEnd = end}
@@ -214,12 +221,43 @@ getListenerState = do listener <- get
                       resetOffset wasRecordingReset 
                       get
 
+isYes :: String -> Bool
+isYes response = let r' = map toLower response in
+                     isMatch r' [re|yes|affirmative|]
+
+isNo :: String -> Bool
+isNo response = let r' = map toLower response in
+                    isMatch r' [re|no|negative|]
+
+isMatch :: String -> Regex -> Bool
+isMatch s r = not (null (scan r s))
+
+listenYesNo :: ListenerMonad Bool
+listenYesNo = do isYes <$> listenPatiently
+
+askQuestion :: String -> ListenerMonad Bool
+askQuestion q = do say q
+                   a <- listenPatiently
+                   let yes = isYes a
+                       no = isNo a
+                   if yes 
+                      then return True
+                      else if no 
+                              then return False
+                              else say "Please say 'yes, affirmative' or 'no, negative'" >> askQuestion q
+
+listenPatiently = listenWithThreshold 0.70
+
+listen :: ListenerMonad String
+listen = do env <- ask
+            listenWithThreshold (activationThreshold env)
+            
 -- repeatedly reads from the capture file, looking for voice boundaries (start and stop)
 -- when we find a voice boundary, we splice off that chunk of audio
 -- and send it to the voice recognition API (OpenAI whisper)
 -- then we return the string to the caller
-listen :: ListenerMonad String
-listen = do
+listenWithThreshold :: Double -> ListenerMonad String
+listenWithThreshold threshold = do
   listener <- getListenerState
   env <- ask
   when (debug env) (liftIO $ debugPrint listener)
@@ -233,7 +271,7 @@ listen = do
       elapsed = if length > 0 then ending else ending + 1
   ss <- liftIO $ runResourceT $ samples $$ sinkList -- get samples from conduit
   voiceDetected :: [Bool] <- liftIO $ detectVoice (vad listener) ss (audioRate env) -- voice tagging
-  let boundary = calcBoundary listener voiceDetected elapsed (activationThreshold env)
+  let boundary = calcBoundary listener voiceDetected elapsed threshold
   put
     listener
       { voiceStartTime = voiceStart boundary,

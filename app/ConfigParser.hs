@@ -33,7 +33,7 @@ parseConfig = EnvConfig
           ( long "recordingLength"
          <> help "how long each recording should last (in seconds)"
          <> showDefault
-         <> value 120
+         <> value 600
          <> metavar "INT" )
     <*> option auto
           ( long "audioRate"
