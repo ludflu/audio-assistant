@@ -1,7 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Listener where
@@ -52,6 +51,7 @@ import Data.Maybe (fromMaybe, isJust, isNothing)
 import qualified Data.Text as T
 import Data.Time.Clock (UTCTime, diffUTCTime, getCurrentTime, nominalDiffTimeToSeconds)
 import qualified Data.Vector.Storable as V
+import MatchHelper (isNo, isYes)
 import Numeric (showFFloat)
 import SendAudio (sendAudio)
 import qualified Sound.File.Sndfile as Snd
@@ -64,7 +64,6 @@ import Sound.VAD.WebRTC as Vad
 import SpeechApi (sayText)
 import System.Process (readProcess)
 import Text.Read (readMaybe)
-import Text.Regex.PCRE.Heavy (Regex, re, scan)
 
 data ListenerState = ListenerState
   { path :: FilePath,
@@ -195,17 +194,6 @@ calcBoundary listener activations elapsed thresholdPurportion =
 isComplete :: RecordingBound -> Bool
 isComplete bound = isJust (voiceStart bound) && isJust (voiceEnd bound)
 
-resetVoiceBounds :: ListenerMonad ()
-resetVoiceBounds = do
-  listener <- get
-  put
-    listener
-      { voiceStartTime = Nothing,
-        voiceEndTime = Nothing,
-        count = count listener + 1
-      }
-  return ()
-
 dropNonNumbers :: String -> String
 dropNonNumbers = filter isNumber
 
@@ -221,19 +209,6 @@ getListenerState = do
   wasRecordingReset <- liftIO $ tryTakeMVar $ audioReset listener
   resetOffset wasRecordingReset
   get
-
-isYes :: String -> Bool
-isYes response =
-  let r' = map toLower response
-   in isMatch r' [re|yes|affirmative|]
-
-isNo :: String -> Bool
-isNo response =
-  let r' = map toLower response
-   in isMatch r' [re|no|negative|]
-
-isMatch :: String -> Regex -> Bool
-isMatch s r = not (null (scan r s))
 
 listenYesNo :: ListenerMonad Bool
 listenYesNo = do isYes <$> listenPatiently
@@ -299,6 +274,17 @@ listenWithThreshold threshold = do
       liftIO $ threadDelay $ round (sleepSeconds env * 1000000)
       listen
 
+resetVoiceBounds :: ListenerMonad ()
+resetVoiceBounds = do
+  listener <- get
+  put
+    listener
+      { voiceStartTime = Nothing,
+        voiceEndTime = Nothing,
+        count = count listener + 1
+      }
+  return ()
+
 resetOffset :: Maybe FilePath -> ListenerMonad ()
 resetOffset newpath =
   case newpath of
@@ -341,7 +327,7 @@ say msg =
         liftIO $ readProcess (command config) args emptystr
         endTime <- liftIO getCurrentTime
         let dur = realToFrac $ nominalDiffTimeToSeconds $ diffUTCTime endTime startTime
-        let offset = timeOffset listenerState + dur + 0.50
+        let offset = timeOffset listenerState + dur + sleepSeconds config -- wait an extra half second to avoid recording the computer's own speech
         put
           listenerState
             { timeOffset = offset,

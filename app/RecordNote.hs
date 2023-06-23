@@ -6,10 +6,13 @@ module RecordNote where
 import Control.Concurrent (threadDelay)
 import Control.Monad (forM_, void, when)
 import Control.Monad.State (liftIO)
-import Data.Maybe
 import Listener
-import System.IO
-import System.Random
+  ( ListenerMonad,
+    askQuestion,
+    listenPatiently,
+    say,
+  )
+import System.IO (IOMode (ReadWriteMode), hGetContents', openFile)
 
 record :: ListenerMonad String
 record = do

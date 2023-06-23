@@ -12,3 +12,6 @@ dep:
 	sudo apt install libpcre3 libpcre3-dev
 	sudo apt install zlib1g-dev libsndfile1-dev sndfile-tools libsamplerate-dev libmp3lame-dev
 
+build:
+	cabal clean
+	cabal build
