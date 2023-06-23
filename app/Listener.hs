@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -28,6 +29,7 @@ import Control.Monad.State
   ( MonadState (get, put),
     StateT (runStateT),
     evalStateT,
+    gets,
     lift,
   )
 import Data.Char (isNumber, toLower)
@@ -95,7 +97,9 @@ runListenerMonad (ListenerMonad stateAction) envConfig =
   evalStateT (runReaderT stateAction envConfig)
 
 instance MonadState ListenerState ListenerMonad where
+  get :: ListenerMonad ListenerState
   get = ListenerMonad get
+  put :: ListenerState -> ListenerMonad ()
   put = ListenerMonad . put
 
 initialState :: Data.Time.Clock.UTCTime -> VAD RealWorld -> MVar String -> FilePath -> ListenerState
@@ -316,7 +320,7 @@ quitNow = do
 
 shouldQuit :: ListenerMonad Bool
 shouldQuit =
-  quit <$> get
+  gets quit
 
 say :: String -> ListenerMonad Double
 say msg =
