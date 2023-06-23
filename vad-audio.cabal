@@ -1,7 +1,7 @@
 cabal-version:      3.6
 name:               vad-audio
 version:            0.1.0.0
-with-compiler:      ghc-9.2.7
+with-compiler:      ghc-9.2.2
 -- A short (one-line) description of the package.
 -- synopsis:
 
@@ -28,7 +28,7 @@ extra-lib-dirs: /opt/homebrew/lib/
 extra-include-dirs: /opt/homebrew/include/
 
 executable vad-audio
-    main-is:          Main.hs
+    main-is:       Main.hs
     ghc-options: -threaded -rtsopts
     other-modules: SendAudio,
                    Actions,
@@ -40,7 +40,8 @@ executable vad-audio
                    RecordAudio,
                    RecordNote,
                    MatchHelper,
-                   WeatherFetcher
+                   WeatherFetcher,
+                   SendEmail
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
@@ -70,8 +71,9 @@ executable vad-audio
                       optparse-applicative,
                       unix,
                       scientific,
-                      smtp-mail,
-                      mime-mail
+                      mime-mail,
+                      HaskellNet,
+                      HaskellNet-SSL
     hs-source-dirs:   app
     default-language: Haskell2010
     default-extensions:  QuasiQuotes, FlexibleContexts

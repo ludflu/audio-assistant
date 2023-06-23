@@ -22,7 +22,9 @@ data EnvConfig = EnvConfig
     activationThreshold :: Double,
     sleepSeconds :: Double,
     segmentDuration :: Double,
-    debug :: Bool
+    debug :: Bool,
+    mailUser :: String,
+    mailPassword :: String
   }
   deriving (Show)
 
@@ -87,4 +89,14 @@ parseConfig =
       ( long "debug"
           <> short 'd'
           <> help "Whether to print debug info"
+      )
+    <*> strOption
+      ( long "mailUser"
+          <> value ""
+          <> help "the username to connect to gmail with"
+      )
+    <*> strOption
+      ( long "mailPassword"
+          <> value ""
+          <> help "the password to connect to gmail with"
       )

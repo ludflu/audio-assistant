@@ -1,18 +1,45 @@
 {-# LANGUAGE OverloadedStrings #-}
+
+module SendEmail where
+
+import Control.Monad (when)
+import Data.Text (Text, pack)
+import qualified Data.Text.Lazy as L
+import Network.HaskellNet.Auth (AuthType (LOGIN))
+import Network.HaskellNet.SMTP.SSL
+  ( AuthType (LOGIN),
+    authenticate,
+    doSMTPSSL,
+    sendMail,
+  )
 import Network.Mail.Mime
-import Network.Mail.SMTP
+  ( Address (Address),
+    Mail,
+    renderMail',
+    simpleMail',
+  )
 
-main :: String -> String IO ()
-main msgTo msgBody = do
-  let mail = simpleMail' to from subject body
-  renderSendMail (SMTPSTARTTLS "smtp.gmail.com" defaultSettingsSMTPSTARTTLS { smtpUsername = Just "your-email@gmail.com"
-                                                                           , smtpPassword = Just "your-password"
-                                                                           }) mail
+sendGmail :: Mail -> String -> String -> IO ()
+sendGmail msg username password = do
+  rendered <- renderMail' msg
+  doSMTPSSL "smtp.gmail.com" $ \connection -> do
+    succeeded <-
+      authenticate
+        LOGIN
+        username
+        password
+        connection
+    when succeeded $
+      sendMail
+        msg
+        connection
 
+email :: Text -> Text -> String -> String -> IO ()
+email msgTo msgBody username password = do
+  let mail = simpleMail' to from subject (L.fromStrict body)
+  sendGmail mail username password
   where
     to = Address Nothing msgTo
-    from = Address Nothing "sender@example.com"
+    from = Address Nothing (pack username)
     subject = "Hello!"
-    body = plainPart msgBody
-
-
+    body = msgBody

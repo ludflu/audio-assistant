@@ -2,7 +2,8 @@
 FNAME=$1
 DUR=$2
 
-ssh jsnavely@rpivad "arecord -f cd -D plughw:3,0 --duration=$DUR -r 16000" >$FNAME
+#ssh jsnavely@rpivad "arecord -f cd -D plughw:3,0 --duration=$DUR -r 16000" >$FNAME
+ssh jsnavely@rpivad "arecord -f cd --duration=$DUR -r 16000" >$FNAME
 
 #echo "arecord -D sysdefault:CARD=PCH -f dat -r 16000 -d $DUR >$FNAME"
 #arecord -D sysdefault:CARD=PCH -f dat -r 16000 -d "$DUR" >"$FNAME"
