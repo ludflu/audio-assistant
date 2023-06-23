@@ -18,6 +18,7 @@ import RecordAudio (record)
 
 import Control.Concurrent (threadDelay, killThread, forkIO)
 import Control.Concurrent.MVar
+import Control.Monad (unless)
 
 -- get a user query, we regex match the recognized voice text against possible known queries
 -- and if it matches a known question, we generate an answer
@@ -28,9 +29,7 @@ commandLoop = do query <- listen
                  response <- findResponseRegex query
                  mapM_ say response
                  quit <- shouldQuit
-                 if quit 
-                    then return ()
-                    else commandLoop
+                 unless quit commandLoop
 
 run :: EnvConfig -> IO ()
 run config = do currentTime <- getCurrentTime
@@ -48,7 +47,7 @@ run config = do currentTime <- getCurrentTime
                                  else wavpath config
                     startState = initialState currentTime vad shouldReset (outpath ++ "/in0.wav")
                 recorderThread <- forkIO $ record _config shouldReset 0
-                threadDelay 2000000 -- wait one second for the recording thread to start
+                threadDelay 4000000 -- wait one second for the recording thread to start
                 runListenerMonad commandLoop _config startState
                 print "ending program, killing recorder thread"
                 killThread recorderThread

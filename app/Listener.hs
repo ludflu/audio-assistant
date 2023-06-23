@@ -1,8 +1,8 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE QuasiQuotes, FlexibleContexts #-}
-
 
 module Listener where
 
@@ -14,10 +14,12 @@ import Conduit
     sinkList,
     ($$),
   )
-import ConfigParser (EnvConfig, sleepSeconds, localpath, audioRate, segmentDuration, debug, activationThreshold, wavpath)
+import ConfigParser (EnvConfig, activationThreshold, audioRate, debug, localpath, segmentDuration, sleepSeconds, wavpath)
 import Control.Concurrent (threadDelay)
+import Control.Concurrent.MVar (MVar, tryTakeMVar)
+import Control.Monad (when)
 import Control.Monad.Except (ExceptT)
-import Control.Monad.IO.Class ( MonadIO(..) )
+import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Reader (MonadReader, ReaderT, ask, runReaderT)
 import Control.Monad.ST (RealWorld)
 import Control.Monad.State
@@ -26,8 +28,7 @@ import Control.Monad.State
     evalStateT,
     lift,
   )
-import Control.Monad (when)
-import Data.Char (isNumber)
+import Data.Char (isNumber, toLower)
 import Data.Conduit.Audio as DCA
   ( AudioSource (frames, source),
     Duration (Seconds),
@@ -49,6 +50,7 @@ import qualified Data.Conduit.List as CL
 import Data.Int (Int16)
 import Data.Maybe (fromMaybe, isJust, isNothing)
 import qualified Data.Text as T
+import Data.Time.Clock (UTCTime, diffUTCTime, getCurrentTime, nominalDiffTimeToSeconds)
 import qualified Data.Vector.Storable as V
 import Numeric (showFFloat)
 import SendAudio (sendAudio)
@@ -59,13 +61,10 @@ import Sound.VAD.WebRTC as Vad
     process,
     validRateAndFrameLength,
   )
-import System.Process ( readProcess )
+import SpeechApi (sayText)
+import System.Process (readProcess)
 import Text.Read (readMaybe)
-import Data.Time.Clock ( UTCTime, getCurrentTime )
-import Control.Concurrent.MVar ( tryTakeMVar, MVar )
-import Text.Regex.PCRE.Heavy
-import Data.Char ( toLower)
-
+import Text.Regex.PCRE.Heavy (Regex, re, scan)
 
 data ListenerState = ListenerState
   { path :: FilePath,
@@ -90,8 +89,8 @@ workingChunkSize :: Double -> Frames
 workingChunkSize rate = round $ rate * timeChunk
 
 runListenerMonad :: ListenerMonad a -> EnvConfig -> ListenerState -> IO a
-runListenerMonad (ListenerMonad stateAction) envConfig listenerState =
-  evalStateT (runReaderT stateAction envConfig) listenerState
+runListenerMonad (ListenerMonad stateAction) envConfig =
+  evalStateT (runReaderT stateAction envConfig)
 
 instance MonadState ListenerState ListenerMonad where
   get = ListenerMonad get
@@ -124,24 +123,25 @@ calcDuration listener =
    in fmap sub se
 
 speak :: a -> ListenerMonad a
-speak = return 
+speak = return
 
 debugPrint :: ListenerState -> IO ()
-debugPrint listener = 
-  do print "------------------------------"
-     print "count:"
-     print (count listener)
-     print "time offset:"
-     print (timeOffset listener)
-     print "voiceStart:"
-     print (voiceStartTime listener)
-     print "voiceEnd:"
-     print (voiceEndTime listener)
-     print "duration:"
-     print $ calcDuration listener
-     print "path:"
-     print $ path listener
-  
+debugPrint listener =
+  do
+    print "------------------------------"
+    print "count:"
+    print (count listener)
+    print "time offset:"
+    print (timeOffset listener)
+    print "voiceStart:"
+    print (voiceStartTime listener)
+    print "voiceEnd:"
+    print (voiceEndTime listener)
+    print "duration:"
+    print $ calcDuration listener
+    print "path:"
+    print $ path listener
+
 detectVoice :: PrimMonad m => Vad.VAD (PrimState m) -> [V.Vector Int16] -> Double -> m [Bool]
 detectVoice vd ss rate =
   let func s = Vad.process (round rate) s vd
@@ -166,7 +166,7 @@ getWavFrom fp start dur rate = do
       timelimited = takeStart (Seconds dur) reorged
   return $ convertIntegral timelimited
 
-writeBoundedWave :: FilePath -> FilePath -> Double -> Double -> Double-> IO ()
+writeBoundedWave :: FilePath -> FilePath -> Double -> Double -> Double -> IO ()
 writeBoundedWave oldPath newPath start end rate =
   do
     src <- getWavFrom oldPath start (end - start) rate
@@ -216,18 +216,21 @@ listenForInteger :: ListenerMonad (Maybe Integer)
 listenForInteger = parseInt <$> listen
 
 getListenerState :: ListenerMonad ListenerState
-getListenerState = do listener <- get
-                      wasRecordingReset <- liftIO $ tryTakeMVar $ audioReset listener
-                      resetOffset wasRecordingReset 
-                      get
+getListenerState = do
+  listener <- get
+  wasRecordingReset <- liftIO $ tryTakeMVar $ audioReset listener
+  resetOffset wasRecordingReset
+  get
 
 isYes :: String -> Bool
-isYes response = let r' = map toLower response in
-                     isMatch r' [re|yes|affirmative|]
+isYes response =
+  let r' = map toLower response
+   in isMatch r' [re|yes|affirmative|]
 
 isNo :: String -> Bool
-isNo response = let r' = map toLower response in
-                    isMatch r' [re|no|negative|]
+isNo response =
+  let r' = map toLower response
+   in isMatch r' [re|no|negative|]
 
 isMatch :: String -> Regex -> Bool
 isMatch s r = not (null (scan r s))
@@ -236,22 +239,25 @@ listenYesNo :: ListenerMonad Bool
 listenYesNo = do isYes <$> listenPatiently
 
 askQuestion :: String -> ListenerMonad Bool
-askQuestion q = do say q
-                   a <- listenPatiently
-                   let yes = isYes a
-                       no = isNo a
-                   if yes 
-                      then return True
-                      else if no 
-                              then return False
-                              else say "Please say 'yes, affirmative' or 'no, negative'" >> askQuestion q
+askQuestion q = do
+  say q
+  a <- listenPatiently
+  let yes = isYes a
+      no = isNo a
+  if yes
+    then return True
+    else
+      if no
+        then return False
+        else say "Please say 'yes, affirmative' or 'no, negative'" >> askQuestion q
 
 listenPatiently = listenWithThreshold 0.70
 
 listen :: ListenerMonad String
-listen = do env <- ask
-            listenWithThreshold (activationThreshold env)
-            
+listen = do
+  env <- ask
+  listenWithThreshold (activationThreshold env)
+
 -- repeatedly reads from the capture file, looking for voice boundaries (start and stop)
 -- when we find a voice boundary, we splice off that chunk of audio
 -- and send it to the voice recognition API (OpenAI whisper)
@@ -263,9 +269,10 @@ listenWithThreshold threshold = do
   when (debug env) (liftIO $ debugPrint listener)
   src <- liftIO $ getWavFrom (path listener) (timeOffset listener) (segmentDuration env) (audioRate env)
   let length = DCA.framesToSeconds (frames src) (audioRate env)
-      capfilepath = if null $ wavpath env
-                      then localpath env ++ "/capture" ++ show (count listener) ++ ".wav"
-                      else wavpath env ++ "/capture" ++ show (count listener) ++ ".wav"
+      capfilepath =
+        if null $ wavpath env
+          then localpath env ++ "/capture" ++ show (count listener) ++ ".wav"
+          else wavpath env ++ "/capture" ++ show (count listener) ++ ".wav"
       samples = DCA.source src
       ending = timeOffset listener + length
       elapsed = if length > 0 then ending else ending + 1
@@ -284,7 +291,7 @@ listenWithThreshold threshold = do
       liftIO $ do
         let se = getStartEnd (voiceStart boundary) (voiceEnd boundary)
             (start, end) = fromMaybe (0.0, 0.0) se -- this default should never happen
-        writeBoundedWave (path listener) capfilepath (start - 0.25) end  (audioRate env)-- back up a 1/4 second to make sure we don't lose anything
+        writeBoundedWave (path listener) capfilepath (start - 0.25) end (audioRate env) -- back up a 1/4 second to make sure we don't lose anything
         transcript <- sendAudio capfilepath
         when (debug env) (liftIO $ print transcript)
         return transcript
@@ -293,40 +300,55 @@ listenWithThreshold threshold = do
       listen
 
 resetOffset :: Maybe FilePath -> ListenerMonad ()
-resetOffset newpath = 
-    case newpath of 
-      Just fp -> do currentTime <- liftIO getCurrentTime
-                    listenerState <- get
-                    put listenerState { 
-                        path = fp, timeOffset = 0.0, 
-                        voiceStartTime = Nothing, voiceEndTime = Nothing, 
-                        startTime = currentTime 
-                                      }
-                    return ()
-      Nothing -> return ()
-
+resetOffset newpath =
+  case newpath of
+    Just fp -> do
+      currentTime <- liftIO getCurrentTime
+      listenerState <- get
+      put
+        listenerState
+          { path = fp,
+            timeOffset = 0.0,
+            voiceStartTime = Nothing,
+            voiceEndTime = Nothing,
+            startTime = currentTime
+          }
+      return ()
+    Nothing -> return ()
 
 quitNow :: ListenerMonad ()
 quitNow = do
   listener <- get
-  put listener
+  put
+    listener
       { quit = True
       }
   return ()
 
 shouldQuit :: ListenerMonad Bool
-shouldQuit = do
-  state <- get
-  return $ quit state
+shouldQuit =
+  quit <$> get
 
-say :: String -> ListenerMonad String
+say :: String -> ListenerMonad Double
 say msg =
   let quoted = quote msg
       args = [quoted]
       emptystr :: String = ""
    in do
+        startTime <- liftIO getCurrentTime
+        listenerState <- get
         config <- ask
         liftIO $ readProcess (command config) args emptystr
+        endTime <- liftIO getCurrentTime
+        let dur = realToFrac $ nominalDiffTimeToSeconds $ diffUTCTime endTime startTime
+        let offset = timeOffset listenerState + dur + 0.50
+        put
+          listenerState
+            { timeOffset = offset,
+              voiceStartTime = Nothing,
+              voiceEndTime = Nothing
+            }
+        return dur
 
 trim :: String -> String
 trim s = T.unpack $ T.strip $ T.pack s
