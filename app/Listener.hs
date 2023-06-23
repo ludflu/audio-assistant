@@ -9,9 +9,12 @@ import Conduit
   ( MonadIO (liftIO),
     MonadResource,
     PrimMonad (PrimState),
+    runConduit,
+    runConduitRes,
     runResourceT,
     sinkList,
     ($$),
+    (.|),
   )
 import ConfigParser (EnvConfig, activationThreshold, audioRate, debug, localpath, segmentDuration, sleepSeconds, wavpath)
 import Control.Concurrent (threadDelay)
@@ -251,7 +254,7 @@ listenWithThreshold threshold = do
       samples = DCA.source src
       ending = timeOffset listener + length
       elapsed = if length > 0 then ending else ending + 1
-  ss <- liftIO $ runResourceT $ samples $$ sinkList -- get samples from conduit
+  ss <- liftIO $ runConduitRes $ samples .| sinkList
   voiceDetected :: [Bool] <- liftIO $ detectVoice (vad listener) ss (audioRate env) -- voice tagging
   let boundary = calcBoundary listener voiceDetected elapsed threshold
   put
