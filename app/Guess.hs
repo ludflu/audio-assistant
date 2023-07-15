@@ -5,8 +5,19 @@ module Guess where
 
 import Control.Concurrent (threadDelay)
 import Control.Monad.State (liftIO)
-import Listener (ListenerMonad, listenForInteger, say)
+import Data.Char (isNumber, toLower)
+import Listener (ListenerMonad, listen, say)
 import System.Random (Random (randomRs), newStdGen)
+import Text.Read (readMaybe)
+
+dropNonNumbers :: String -> String
+dropNonNumbers = filter isNumber
+
+parseInt :: String -> Maybe Integer
+parseInt str = readMaybe $ dropNonNumbers str
+
+listenForInteger :: ListenerMonad (Maybe Integer)
+listenForInteger = parseInt <$> listen
 
 guess :: Integer -> ListenerMonad String
 guess secret = do
