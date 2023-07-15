@@ -37,5 +37,4 @@ readNote :: ListenerMonad String
 readNote = do
   let fname = "test.txt"
   handle <- liftIO $ openFile fname ReadWriteMode
-  contents <- liftIO $ hGetContents' handle
-  return contents
+  liftIO $ hGetContents' handle

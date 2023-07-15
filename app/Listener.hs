@@ -32,7 +32,7 @@ import Control.Monad.State
     gets,
     lift,
   )
-import Data.Char (isNumber, toLower)
+import Data.Char (toLower)
 import Data.Conduit.Audio as DCA
   ( AudioSource (frames, source),
     Duration (Seconds),
@@ -68,7 +68,6 @@ import Sound.VAD.WebRTC as Vad
   )
 import SpeechApi (sayText)
 import System.Process (readProcess)
-import Text.Read (readMaybe)
 
 data ListenerState = ListenerState
   { path :: FilePath,
@@ -201,15 +200,6 @@ calcBoundary listener activations elapsed thresholdPurportion =
 isComplete :: RecordingBound -> Bool
 isComplete bound = isJust (voiceStart bound) && isJust (voiceEnd bound)
 
-dropNonNumbers :: String -> String
-dropNonNumbers = filter isNumber
-
-parseInt :: String -> Maybe Integer
-parseInt str = readMaybe $ dropNonNumbers str
-
-listenForInteger :: ListenerMonad (Maybe Integer)
-listenForInteger = parseInt <$> listen
-
 getListenerState :: ListenerMonad ListenerState
 getListenerState = do
   listener <- get
@@ -224,12 +214,10 @@ askQuestion :: String -> ListenerMonad Bool
 askQuestion q = do
   say q
   a <- listenPatiently
-  let yes = isYes a
-      no = isNo a
-  if yes
+  if isYes a
     then return True
     else
-      if no
+      if isNo a
         then return False
         else say "Please say 'yes, affirmative' or 'no, negative'" >> askQuestion q
 

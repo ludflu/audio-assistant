@@ -2,23 +2,21 @@ cabal-version:      3.6
 name:               vad-audio
 version:            0.1.0.0
 with-compiler:      ghc-9.2.2
--- A short (one-line) description of the package.
--- synopsis:
+synopsis:
+    a voice assistant
 
--- A longer description of the package.
--- description:
+description:
+    A voice assistant for basic tasks, listens and segments audio using voice activity detection
 
--- A URL where users can report bugs.
--- bug-reports:
 
 -- The license under which the package is released.
 -- license:
 
--- The package author(s).
--- author:
+author:
+    Jim Snavely
 
--- An email address to which users can send suggestions, bug reports, and patches.
--- maintainer:
+maintainer:
+    ludflu@gmail.com
 
 -- A copyright notice.
 -- copyright:
@@ -43,8 +41,6 @@ executable vad-audio
                    WeatherFetcher,
                    SendEmail
 
-    -- LANGUAGE extensions used by modules in this package.
-    -- other-extensions:
     build-depends:    base,
                       mtl,
                       hsndfile,
@@ -77,3 +73,44 @@ executable vad-audio
     hs-source-dirs:   app
     default-language: Haskell2010
     default-extensions:  QuasiQuotes, FlexibleContexts
+
+test-suite vad-tests
+  type: exitcode-stdio-1.0
+  other-modules: Listener
+  hs-source-dirs:
+      tests,
+      app
+  main-is: Tests.hs
+  build-depends:
+      base >= 4.7 && < 5,
+      mtl,
+      hsndfile,
+      conduit,
+      conduit-audio-samplerate,
+      conduit-audio,
+      conduit-audio-lame,
+      conduit-audio-sndfile,
+      webrtc-vad,
+      vector,
+      aeson,
+      req,
+      http-client,
+      time,
+      timezone-olson,
+      timezone-series,
+      text,
+      process,
+      containers,
+      pcre-heavy,
+      string-conversions,
+      random,
+      directory,
+      optparse-applicative,
+      unix,
+      scientific,
+      mime-mail,
+      HaskellNet,
+      HaskellNet-SSL,
+      tasty,
+      tasty-hunit
+
