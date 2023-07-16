@@ -39,7 +39,9 @@ executable vad-audio
                    RecordNote,
                    MatchHelper,
                    WeatherFetcher,
-                   SendEmail
+                   SendEmail,
+                   VoiceDetectionSliceReader,
+                   DavinciApi
 
     build-depends:    base,
                       mtl,
@@ -69,7 +71,8 @@ executable vad-audio
                       scientific,
                       mime-mail,
                       HaskellNet,
-                      HaskellNet-SSL
+                      HaskellNet-SSL,
+                      retry
     hs-source-dirs:   app
     default-language: Haskell2010
     default-extensions:  QuasiQuotes, FlexibleContexts
