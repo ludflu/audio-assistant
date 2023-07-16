@@ -18,7 +18,7 @@ import Control.Monad.State
     lift,
   )
 import Data.Char (isLower, isSpace, toLower)
-import Data.List
+import Data.List (find)
 import qualified Data.Map as M
 import Data.Maybe
 import Data.String.Conversions ()
@@ -30,8 +30,9 @@ import Data.Time.LocalTime
 import Data.Time.LocalTime.TimeZone.Olson ()
 import Data.Time.LocalTime.TimeZone.Series
 import Data.Traversable
-import Guess
-import Listener (ListenerMonad, quitNow, speak)
+import DavinciApi (askQuestion)
+import Guess (guessingGame)
+import Listener (ListenerMonad, askQuestion, quitNow, speak)
 import MatchHelper (isMatch)
 import RecordNote (readNote, recordNote)
 import SayDateTime (currentDay, currentTime)
@@ -55,8 +56,9 @@ regexResponses =
       ([re|record a note|], const recordNote),
       ([re|read the note|], const readNote),
       ([re|email the note|], const sendEmailNote),
-      ([re|i love you computer|], \x -> speak "I love you too!")
-    ]
+      ([re|i love you computer|], \x -> speak "I love you too!"),
+      ([re|hey genius (.*)|], liftIO . DavinciApi.askQuestion . head)
+    ] -- hey davinci
 
 sendEmailNote :: ListenerMonad String
 sendEmailNote = do
