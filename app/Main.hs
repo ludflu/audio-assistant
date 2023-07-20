@@ -70,7 +70,7 @@ run config = do
   runListenerMonad commandLoop _config startState
   print "ending program, killing recorder thread"
   killThread recorderThread
-  return ()
+  run config -- dirty hack because things sometimes crash
 
 main :: IO ()
 main = run =<< execParser opts
