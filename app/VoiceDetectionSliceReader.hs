@@ -13,8 +13,13 @@ import Conduit
     ($$),
     (.|),
   )
+import Control.Exception.Safe (Exception, throw, try)
 import Control.Monad.ST (RealWorld)
 import Control.Retry
+  ( exponentialBackoff,
+    limitRetries,
+    recoverAll,
+  )
 import Data.Conduit.Audio as DCA
   ( AudioSource (frames, source),
     Duration (Seconds),
@@ -32,8 +37,10 @@ import Data.Conduit.Audio.Sndfile
     sourceSnd,
     sourceSndFrom,
   )
+import Data.Either (fromRight, isLeft)
 import Data.Int (Int16)
 import qualified Data.Vector.Storable as V
+import GHC.IO.Exception (IOException)
 import qualified Sound.File.Sndfile as Snd
 import Sound.VAD.WebRTC as Vad
   ( VAD,
@@ -60,44 +67,35 @@ detectVoice vd ss rate =
       validFrames = filter (\vs -> V.length vs == workingChunkSize rate) ss
    in mapM func validFrames
 
+writeBoundedWave :: FilePath -> FilePath -> Double -> Double -> Double -> IO ()
+writeBoundedWave oldPath newPath start end rate =
+  do
+    src <- getWavFrom oldPath start (end - start) rate
+    retryWithBackoff $ runResourceT $ sinkSnd newPath myformat src
+
+retryWithBackoff :: IO x -> IO x
+retryWithBackoff action =
+  let f _ = action
+      exponentialPolicy = exponentialBackoff 400000 <> limitRetries 20
+   in recoverAll exponentialPolicy f
+
 -- given a path, a start time and a duration (in seconds) will return:
 -- a single channel audio source,
 -- with pulses recorded as Int16s
 -- in chunks of 30 ms
 getWavFrom :: (MonadResource m) => FilePath -> Double -> Double -> Double -> IO (AudioSource m Int16)
 getWavFrom fp start dur rate = do
-  src <- sourceSndFrom (Seconds start) fp
+  src <- retryWithBackoff $ sourceSndFrom (Seconds start) fp
   let split = DCA.splitChannels src -- we only want a single channel
       reorged = DCA.reorganize (workingChunkSize rate) (head split)
       timelimited = takeStart (Seconds dur) reorged
   return $ convertIntegral timelimited
-
-writeBoundedWave :: FilePath -> FilePath -> Double -> Double -> Double -> IO ()
-writeBoundedWave oldPath newPath start end rate =
-  do
-    src <- getWavFrom oldPath start (end - start) rate
-    runResourceT $ sinkSnd newPath myformat src
 
 readSlice :: FilePath -> Double -> Double -> Double -> Vad.VAD RealWorld -> IO ([Bool], Double)
 readSlice path start end rate vad = do
   src <- getWavFrom path start end rate
   let length = DCA.framesToSeconds (frames src) rate
       samples = DCA.source src
-  ss <- liftIO $ runConduitRes $ samples .| sinkList
-  activations <- liftIO $ detectVoice vad ss rate
+  ss <- retryWithBackoff $ liftIO $ runConduitRes $ samples .| sinkList
+  activations <- retryWithBackoff $ liftIO $ detectVoice vad ss rate
   return (activations, length)
-
-exponentialPolicy :: RetryPolicy
-exponentialPolicy = exponentialBackoff 200000 <> limitRetries 3
-
--- The function to decide whether to retry or not.
--- This takes the current status of the retries (how
--- often has been retried already and for how long) and
--- returns whether we should retry or not.
--- retryDecider :: RetryStatus -> b -> m Bool
--- retryDecider _ x = return x
-
-readSliceWithRetry :: FilePath -> Double -> Double -> Double -> Vad.VAD RealWorld -> IO ([Bool], Double)
-readSliceWithRetry path start end rate vad =
-  let f _ = readSlice path start end rate vad
-   in recoverAll exponentialPolicy f

@@ -32,7 +32,7 @@ import Data.Time.LocalTime.TimeZone.Series
 import Data.Traversable
 import DavinciApi (askQuestion)
 import Guess (guessingGame)
-import Listener (ListenerMonad, askQuestion, quitNow, speak)
+import Listener (ListenerMonad, quitNow, speak)
 import MatchHelper (isMatch)
 import RecordNote (readNote, recordNote)
 import SayDateTime (currentDay, currentTime)
@@ -57,7 +57,7 @@ regexResponses =
       ([re|read the note|], const readNote),
       ([re|email the note|], const sendEmailNote),
       ([re|i love you computer|], \x -> speak "I love you too!"),
-      ([re|hey genius (.*)|], liftIO . DavinciApi.askQuestion . head)
+      ([re|okay genius (.*)|], liftIO . DavinciApi.askQuestion . head)
     ] -- hey davinci
 
 sendEmailNote :: ListenerMonad String
