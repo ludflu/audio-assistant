@@ -8,10 +8,10 @@ import Control.Monad (forM_, void, when)
 import Control.Monad.State (liftIO)
 import Listener
   ( ListenerMonad,
-    askQuestion,
     listenPatiently,
     say,
   )
+import MatchHelper (isNo, isYes)
 import System.IO (IOMode (ReadWriteMode), hGetContents', openFile)
 
 record :: ListenerMonad String
@@ -23,6 +23,17 @@ say_ :: String -> ListenerMonad ()
 say_ note = do
   _ <- say note
   return ()
+
+askQuestion :: String -> ListenerMonad Bool
+askQuestion q = do
+  say q
+  a <- listenPatiently
+  if isYes a
+    then return True
+    else
+      if isNo a
+        then return False
+        else say "Please say 'yes, affirmative' or 'no, negative'" >> askQuestion q
 
 recordNote :: ListenerMonad String
 recordNote = do

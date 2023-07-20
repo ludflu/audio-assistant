@@ -72,7 +72,10 @@ executable vad-audio
                       mime-mail,
                       HaskellNet,
                       HaskellNet-SSL,
-                      retry
+                      retry,
+                      safe-exceptions,
+                      directory,
+                      monad-loops
     hs-source-dirs:   app
     default-language: Haskell2010
     default-extensions:  QuasiQuotes, FlexibleContexts

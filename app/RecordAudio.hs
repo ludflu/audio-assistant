@@ -6,6 +6,8 @@ module RecordAudio where
 import ConfigParser (EnvConfig, localpath, recordingLength, wavpath)
 import Control.Concurrent (threadDelay)
 import Control.Concurrent.MVar (MVar, putMVar)
+import Control.Monad (when)
+import Network.HaskellNet.IMAP.Connection (exists)
 import System.Posix.Signals
 import System.Process (createProcess, proc, waitForProcess)
 import System.Process.Internals

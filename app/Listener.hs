@@ -6,12 +6,13 @@
 
 module Listener where
 
-import ConfigParser (EnvConfig, activationThreshold, audioRate, debug, localpath, segmentDuration, sleepSeconds, wavpath)
+import ConfigParser (EnvConfig (recordingLength), activationThreshold, audioRate, debug, localpath, segmentDuration, sleepSeconds, wavpath)
 import Control.Concurrent (threadDelay)
 import Control.Concurrent.MVar (MVar, tryTakeMVar)
 import Control.Monad (when)
 import Control.Monad.Except (ExceptT)
 import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Loops (untilM_)
 import Control.Monad.Reader (MonadReader, ReaderT, ask, runReaderT)
 import Control.Monad.ST (RealWorld)
 import Control.Monad.State
@@ -25,15 +26,15 @@ import Data.Char (toLower)
 import Data.Maybe (fromMaybe, isJust, isNothing)
 import qualified Data.Text as T
 import Data.Time.Clock (UTCTime, diffUTCTime, getCurrentTime, nominalDiffTimeToSeconds)
-import MatchHelper (isNo, isYes)
 import Numeric (showFFloat)
 import SendAudio (sendAudio)
 import Sound.VAD.WebRTC as Vad
   ( VAD,
   )
 import SpeechApi (sayText)
+import System.Directory (doesFileExist)
 import System.Process (readProcess)
-import VoiceDetectionSliceReader (readSliceWithRetry, writeBoundedWave)
+import VoiceDetectionSliceReader (readSlice, writeBoundedWave)
 
 data ListenerState = ListenerState
   { path :: FilePath,
@@ -131,26 +132,18 @@ calcBoundary listener activations elapsed thresholdPurportion =
 isComplete :: RecordingBound -> Bool
 isComplete bound = isJust (voiceStart bound) && isJust (voiceEnd bound)
 
+waitForFileToArrive :: FilePath -> IO ()
+waitForFileToArrive filename =
+  untilM_
+    (threadDelay 100000)
+    (doesFileExist filename)
+
 getListenerState :: ListenerMonad ListenerState
 getListenerState = do
   listener <- get
   wasRecordingReset <- liftIO $ tryTakeMVar $ audioReset listener
   resetOffset wasRecordingReset
   get
-
-listenYesNo :: ListenerMonad Bool
-listenYesNo = do isYes <$> listenPatiently
-
-askQuestion :: String -> ListenerMonad Bool
-askQuestion q = do
-  say q
-  a <- listenPatiently
-  if isYes a
-    then return True
-    else
-      if isNo a
-        then return False
-        else say "Please say 'yes, affirmative' or 'no, negative'" >> askQuestion q
 
 listenPatiently :: ListenerMonad String
 listenPatiently = listenWithThreshold 0.70
@@ -164,13 +157,13 @@ listen = do
 -- when we find a voice boundary, we splice off that chunk of audio
 -- and send it to the voice recognition API (OpenAI whisper)
 -- then we return the string to the caller
--- TODO handle exceptions in reading the files be retrying 3 times
 listenWithThreshold :: Double -> ListenerMonad String
 listenWithThreshold threshold = do
   listener <- getListenerState
   env <- ask
+  when (timeOffset listener > fromIntegral (recordingLength env)) (liftIO $ print "max time exceeded")
   when (debug env) (liftIO $ debugPrint listener)
-  (voiceActivations, length) <- liftIO $ readSliceWithRetry (path listener) (timeOffset listener) (segmentDuration env) (audioRate env) (vad listener)
+  (voiceActivations, length) <- liftIO $ readSlice (path listener) (timeOffset listener) (segmentDuration env) (audioRate env) (vad listener)
   let ending = timeOffset listener + length
       elapsed = if length > 0 then ending else ending + 1
       boundary = calcBoundary listener voiceActivations elapsed threshold
@@ -214,10 +207,11 @@ resetOffset :: Maybe FilePath -> ListenerMonad ()
 resetOffset newpath =
   case newpath of
     Just fp -> do
-      currentTime <- liftIO getCurrentTime
       liftIO $ threadDelay 1500000 -- wait 1.5 seconds for new recording to be available
+      liftIO $ waitForFileToArrive fp
       liftIO $ print "new audio file!"
       liftIO $ print fp
+      currentTime <- liftIO getCurrentTime
       listenerState <- get
       put
         listenerState
@@ -255,7 +249,7 @@ say msg =
         liftIO $ readProcess (command config) args emptystr
         endTime <- liftIO getCurrentTime
         let dur = realToFrac $ nominalDiffTimeToSeconds $ diffUTCTime endTime startTime
-        let offset = timeOffset listenerState + dur + sleepSeconds config -- wait an extra half second to avoid recording the computer's own speech
+        let offset = timeOffset listenerState + dur + sleepSeconds config -- advance the offset to skip over the time when the computer was talking
         put
           listenerState
             { timeOffset = offset,
