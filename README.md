@@ -24,13 +24,13 @@ we use the [conduit-audio](https://hackage.haskell.org/package/conduit-audio) mo
 - [x] report the date
 - [x] say hello
 - [x] play the guessing game
+- [x] email someone
+- [x] create memo
+- [x] generic question answering via API
 - [ ] report the weather
-- [ ] manage notes (CRUD + search)
-- [ ] email someone
 - [ ] manage contacts (CRUD + search)
 - [ ] set reminders
 - [ ] manage calendar items
-- [ ] generic question answering based on sentence vector embeddings
 
 ## Building
 
