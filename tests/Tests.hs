@@ -1,4 +1,15 @@
+{-# OPTIONS_GHC -Wno-missing-fields #-}
+
 import Listener
+  ( ListenerState
+      ( ListenerState,
+        timeOffset,
+        voiceEndTime,
+        voiceStartTime
+      ),
+    RecordingBound (RecordingBound, voiceEnd, voiceStart),
+    calcBoundary,
+  )
 import Test.Tasty (TestTree, defaultMain, testGroup)
 import Test.Tasty.HUnit (testCase, (@?=))
 

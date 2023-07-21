@@ -41,7 +41,8 @@ executable vad-audio
                    WeatherFetcher,
                    SendEmail,
                    VoiceDetectionSliceReader,
-                   DavinciApi
+                   DavinciApi,
+                   Reminders
 
     build-depends:    base,
                       mtl,
