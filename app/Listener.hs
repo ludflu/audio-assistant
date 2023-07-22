@@ -45,7 +45,8 @@ data ListenerState = ListenerState
     vad :: Vad.VAD RealWorld,
     count :: Int,
     quit :: Bool,
-    audioReset :: MVar FilePath
+    audioReset :: MVar FilePath,
+    mailbox :: MVar String
   }
 
 newtype ListenerMonad a = ListenerMonad (ReaderT EnvConfig (StateT ListenerState IO) a)

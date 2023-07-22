@@ -2,19 +2,35 @@
 
 module Reminders where
 
-import Control.Concurrent (ThreadId, forkIO, threadDelay)
-import Control.Monad.State (liftIO)
-import Listener (ListenerMonad, say)
+import Control.Concurrent (MVar, ThreadId, forkIO, putMVar, threadDelay)
+import Control.Monad.State
+  ( MonadState (get, put),
+    StateT (runStateT),
+    evalStateT,
+    gets,
+    lift,
+    liftIO,
+  )
+import Listener (ListenerMonad, ListenerState (mailbox), listenPatiently, say)
+import MatchHelper (parseInt)
 
-runReminder :: Int -> String -> ListenerMonad ()
-runReminder seconds reminder = do
-  liftIO $ threadDelay (10 ^ 6 * seconds)
-  say reminder
+sendReminder :: Integer -> String -> MVar String -> IO ()
+sendReminder seconds reminder mailbox = do
+  threadDelay (10 ^ 6 * fromInteger seconds)
+  putMVar mailbox reminder
   return ()
 
-setReminder :: Int -> String -> ListenerMonad ()
-setReminder seconds reminder =
-  let runAction = runReminder seconds reminder
-   in do
-        runAction
-        return ()
+setReminder :: [String] -> ListenerMonad ()
+setReminder s =
+  let seconds = parseInt $ head s
+   in case seconds of
+        Just secs -> setReminder' secs
+        Nothing -> return ()
+
+setReminder' :: Integer -> ListenerMonad ()
+setReminder' seconds = do
+  listener <- get
+  say "what's the reminder?"
+  reminder <- listenPatiently
+  let box = mailbox listener
+  liftIO $ sendReminder seconds reminder box
