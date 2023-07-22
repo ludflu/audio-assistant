@@ -12,11 +12,11 @@ import Control.Monad.State
     liftIO,
   )
 import Listener (ListenerMonad, ListenerState (mailbox), listenPatiently, say)
-import MatchHelper (parseInt)
+import MatchHelper (readInt)
 
 sendReminder' :: Integer -> String -> MVar String -> IO ()
 sendReminder' seconds reminder mailbox = do
-  threadDelay (10 ^ 6 * fromInteger seconds)
+  threadDelay (10 ^ 6 * fromInteger seconds * 60)
   putMVar mailbox reminder
   return ()
 
@@ -37,7 +37,7 @@ setReminder :: [String] -> ListenerMonad String
 setReminder s = do
   liftIO $ print "setting reminder:---------"
   liftIO $ print s
-  let seconds = parseInt $ last s
+  let seconds = readInt $ last s
    in case seconds of
         Just secs -> setReminder' secs >> return "reminder set."
         Nothing -> return "Invalid time"

@@ -7,11 +7,11 @@ import Control.Concurrent (threadDelay)
 import Control.Monad.State (liftIO)
 import Data.Char (isNumber, toLower)
 import Listener (ListenerMonad, listen, say)
-import MatchHelper (parseInt)
+import MatchHelper (parseInt, readInt)
 import System.Random (Random (randomRs), newStdGen)
 
 listenForInteger :: ListenerMonad (Maybe Integer)
-listenForInteger = parseInt <$> listen
+listenForInteger = readInt <$> listen
 
 guess :: Integer -> ListenerMonad String
 guess secret = do
