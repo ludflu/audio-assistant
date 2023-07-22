@@ -66,3 +66,11 @@ Tested with GHC 9.2.5, Cabal 3.6.2.0
 
 `cabal run vad-audio -- --debug`
 
+### Planned Improvements
+
+I'd like to match the utterances with the actions using cosine similarity of sentence BERT embeddings rather than REGEX matches. Before that can happen, I need a few new pieces of functionality:
+
+- [x] Calculate BERT embeddings for both source and target text
+- [x] Rank by similarity 
+- [ ] Perform dependency parsing probably with spaCy
+- [ ] Extract relevant parameters from dependency parse to feed to target functions
