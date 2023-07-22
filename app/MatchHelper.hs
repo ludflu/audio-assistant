@@ -6,6 +6,7 @@ module MatchHelper where
 import Control.Applicative ((<|>))
 import Data.Char (isNumber, toLower)
 import qualified Data.Map as M
+import qualified Data.Text as T
 import Text.Read (readMaybe)
 import Text.Regex.PCRE.Heavy (Regex, re, scan)
 
@@ -41,10 +42,13 @@ numsToString' i =
   let ii = fromInteger i
    in numsToString ii
 
+strip :: String -> String
+strip s = T.unpack $ T.strip (T.pack s) -- I know this shouldn't be required due to OverloadedStrings
+
 nummap :: M.Map String Integer
 nummap =
   let numnum = map toInteger [1 .. 99]
-      numstrs = map numsToString' numnum
+      numstrs = map (strip . numsToString') numnum
    in M.fromList (zip numstrs numnum)
 
 lookupNum :: String -> Maybe Integer
