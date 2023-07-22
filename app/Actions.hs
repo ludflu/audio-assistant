@@ -56,7 +56,7 @@ regexResponses =
       ([re|play the guessing game|], const guessingGame),
       ([re|record a note|], const recordNote),
       ([re|read the note|], const readNote),
-      ([re|computer set a reminder( for)?( in)? (\d+) minutes|], setReminder),
+      ([re|computer set a reminder (\d+) minutes|], setReminder),
       ([re|email the note|], const sendEmailNote),
       ([re|i love you computer|], \x -> speak "I love you too!"),
       ([re|okay genius (.*)|], liftIO . DavinciApi.askQuestion . head)
