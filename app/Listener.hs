@@ -64,8 +64,8 @@ instance MonadState ListenerState ListenerMonad where
   put :: ListenerState -> ListenerMonad ()
   put = ListenerMonad . put
 
-initialState :: Data.Time.Clock.UTCTime -> VAD RealWorld -> MVar String -> FilePath -> ListenerState
-initialState currentTime vad wasAudioReset initialPath =
+initialState :: Data.Time.Clock.UTCTime -> VAD RealWorld -> MVar FilePath -> MVar String -> FilePath -> ListenerState
+initialState currentTime vad wasAudioReset mailbox initialPath =
   ListenerState
     { startTime = currentTime,
       path = initialPath,
@@ -75,7 +75,8 @@ initialState currentTime vad wasAudioReset initialPath =
       voiceEndTime = Nothing,
       count = 0,
       quit = False,
-      audioReset = wasAudioReset
+      audioReset = wasAudioReset,
+      mailbox = mailbox
     }
 
 getStartEnd :: Maybe Double -> Maybe Double -> Maybe (Double, Double)

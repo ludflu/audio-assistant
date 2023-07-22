@@ -21,7 +21,8 @@ import Listener
     shouldQuit,
   )
 import Options.Applicative
-  ( execParser,
+  ( Alternative (empty),
+    execParser,
     fullDesc,
     header,
     helper,
@@ -52,6 +53,7 @@ run config = do
   currentTime <- getCurrentTime
   currentWorkingDirectory <- getCurrentDirectory
   shouldReset :: MVar FilePath <- newEmptyMVar
+  emptyMailbox :: MVar String <- newEmptyMVar
   print "vad-listener start"
   print currentTime
   print $ show config
@@ -64,7 +66,7 @@ run config = do
         if null $ wavpath config
           then currentWorkingDirectory
           else wavpath config
-      startState = initialState currentTime vad shouldReset (outpath ++ "/in0.wav")
+      startState = initialState currentTime vad shouldReset emptyMailbox (outpath ++ "/in0.wav")
   recorderThread <- forkIO $ record _config shouldReset 0
   threadDelay 4000000 -- wait 4 seconds for the recording thread to start
   runListenerMonad commandLoop _config startState
