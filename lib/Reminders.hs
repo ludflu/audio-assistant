@@ -24,7 +24,7 @@ setReminder :: [String] -> ListenerMonad String
 setReminder s = do
   liftIO $ print "setting reminder:---------"
   liftIO $ print s
-  let seconds = parseInt $ head s
+  let seconds = parseInt $ last s
    in case seconds of
         Just secs -> setReminder' secs >> return "reminder set."
         Nothing -> return "Invalid time"
