@@ -35,6 +35,7 @@ import Guess (guessingGame)
 import Listener (ListenerMonad, quitNow, speak)
 import MatchHelper (isMatch)
 import RecordNote (readNote, recordNote)
+import Reminders (setReminder)
 import SayDateTime (currentDay, currentTime)
 import SendEmail (email)
 import System.Process
@@ -55,6 +56,7 @@ regexResponses =
       ([re|play the guessing game|], const guessingGame),
       ([re|record a note|], const recordNote),
       ([re|read the note|], const readNote),
+      ([re|computer set a reminder|], const setReminder),
       ([re|email the note|], const sendEmailNote),
       ([re|i love you computer|], \x -> speak "I love you too!"),
       ([re|okay genius (.*)|], liftIO . DavinciApi.askQuestion . head)
