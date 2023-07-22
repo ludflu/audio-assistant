@@ -16,7 +16,7 @@ import MatchHelper (readInt)
 
 sendReminder' :: Integer -> String -> MVar String -> IO ()
 sendReminder' seconds reminder mailbox = do
-  threadDelay (10 ^ 6 * fromInteger seconds)
+  threadDelay (10 ^ 6 * fromInteger seconds * 60)
   putMVar mailbox reminder
   return ()
 
