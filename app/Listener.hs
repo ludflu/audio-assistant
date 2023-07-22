@@ -45,7 +45,8 @@ data ListenerState = ListenerState
     vad :: Vad.VAD RealWorld,
     count :: Int,
     quit :: Bool,
-    audioReset :: MVar FilePath
+    audioReset :: MVar FilePath,
+    mailbox :: MVar String
   }
 
 newtype ListenerMonad a = ListenerMonad (ReaderT EnvConfig (StateT ListenerState IO) a)
@@ -63,8 +64,8 @@ instance MonadState ListenerState ListenerMonad where
   put :: ListenerState -> ListenerMonad ()
   put = ListenerMonad . put
 
-initialState :: Data.Time.Clock.UTCTime -> VAD RealWorld -> MVar String -> FilePath -> ListenerState
-initialState currentTime vad wasAudioReset initialPath =
+initialState :: Data.Time.Clock.UTCTime -> VAD RealWorld -> MVar FilePath -> MVar String -> FilePath -> ListenerState
+initialState currentTime vad wasAudioReset mailbox initialPath =
   ListenerState
     { startTime = currentTime,
       path = initialPath,
@@ -74,7 +75,8 @@ initialState currentTime vad wasAudioReset initialPath =
       voiceEndTime = Nothing,
       count = 0,
       quit = False,
-      audioReset = wasAudioReset
+      audioReset = wasAudioReset,
+      mailbox = mailbox
     }
 
 getStartEnd :: Maybe Double -> Maybe Double -> Maybe (Double, Double)
@@ -142,6 +144,8 @@ getListenerState :: ListenerMonad ListenerState
 getListenerState = do
   listener <- get
   wasRecordingReset <- liftIO $ tryTakeMVar $ audioReset listener
+  mail <- liftIO $ tryTakeMVar $ mailbox listener
+  when (isJust mail) (mapM_ (\x -> say "reminder!" >> say x) mail)
   resetOffset wasRecordingReset
   get
 
@@ -208,7 +212,6 @@ resetOffset newpath =
   case newpath of
     Just fp -> do
       liftIO $ threadDelay 1500000 -- wait 1.5 seconds for new recording to be available
-      liftIO $ waitForFileToArrive fp
       liftIO $ print "new audio file!"
       liftIO $ print fp
       currentTime <- liftIO getCurrentTime

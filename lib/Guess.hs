@@ -7,14 +7,8 @@ import Control.Concurrent (threadDelay)
 import Control.Monad.State (liftIO)
 import Data.Char (isNumber, toLower)
 import Listener (ListenerMonad, listen, say)
+import MatchHelper (parseInt)
 import System.Random (Random (randomRs), newStdGen)
-import Text.Read (readMaybe)
-
-dropNonNumbers :: String -> String
-dropNonNumbers = filter isNumber
-
-parseInt :: String -> Maybe Integer
-parseInt str = readMaybe $ dropNonNumbers str
 
 listenForInteger :: ListenerMonad (Maybe Integer)
 listenForInteger = parseInt <$> listen
