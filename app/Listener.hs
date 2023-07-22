@@ -211,7 +211,6 @@ resetOffset newpath =
   case newpath of
     Just fp -> do
       liftIO $ threadDelay 1500000 -- wait 1.5 seconds for new recording to be available
-      liftIO $ waitForFileToArrive fp
       liftIO $ print "new audio file!"
       liftIO $ print fp
       currentTime <- liftIO getCurrentTime
