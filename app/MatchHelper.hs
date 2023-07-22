@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
 
 module MatchHelper where
@@ -30,20 +31,20 @@ nums = ["", "one", "two", "three", "four", "five", "six", "seven", "eight", "nin
 teens :: [String]
 teens = ["", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety", "hundred"]
 
-numsToText :: Int -> String
-numsToText i
+numsToString :: Int -> String
+numsToString i
   | i <= 20 = nums !! i
   | i < 100 = teens !! ((i `div` 10) - 1) ++ " " ++ nums !! (i `mod` 10)
 
-numsToText' :: Integer -> String
-numsToText' i =
+numsToString' :: Integer -> String
+numsToString' i =
   let ii = fromInteger i
-   in numsToText ii
+   in numsToString ii
 
 nummap :: M.Map String Integer
 nummap =
-  let numnum = map toInteger [1 .. 100]
-      numstrs = map numsToText' numnum
+  let numnum = map toInteger [1 .. 99]
+      numstrs = map numsToString' numnum
    in M.fromList (zip numstrs numnum)
 
 lookupNum :: String -> Maybe Integer
