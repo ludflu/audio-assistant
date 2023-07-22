@@ -20,12 +20,12 @@ sendReminder seconds reminder mailbox = do
   putMVar mailbox reminder
   return ()
 
-setReminder :: [String] -> ListenerMonad ()
+setReminder :: [String] -> ListenerMonad String
 setReminder s =
   let seconds = parseInt $ head s
    in case seconds of
-        Just secs -> setReminder' secs
-        Nothing -> return ()
+        Just secs -> setReminder' secs >> return "reminder set."
+        Nothing -> return "Invalid time"
 
 setReminder' :: Integer -> ListenerMonad ()
 setReminder' seconds = do
