@@ -17,7 +17,7 @@ import Control.Monad.State
     gets,
     lift,
   )
-import Data.Char (isLower, isSpace, toLower)
+import Data.Char (isLower, isNumber, isSpace, toLower)
 import Data.List (find)
 import qualified Data.Map as M
 import Data.Maybe
@@ -76,7 +76,7 @@ lowerCase :: [Char] -> [Char]
 lowerCase = map toLower
 
 dropNonLetters :: String -> String
-dropNonLetters = filter (\x -> isLower x || isSpace x)
+dropNonLetters = filter (\x -> isLower x || isSpace x || isNumber x)
 
 fuzzyMatch :: String -> Regex -> [(String, [String])]
 fuzzyMatch s r = scan r s
