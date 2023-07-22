@@ -166,7 +166,7 @@ listenWithThreshold threshold = do
   listener <- getListenerState
   env <- ask
   when (timeOffset listener > fromIntegral (recordingLength env)) (liftIO $ print "max time exceeded")
-  when (debug env) (liftIO $ debugPrint listener)
+  -- when (debug env) (liftIO $ debugPrint listener)
   (voiceActivations, length) <- liftIO $ readSlice (path listener) (timeOffset listener) (segmentDuration env) (audioRate env) (vad listener)
   let ending = timeOffset listener + length
       elapsed = if length > 0 then ending else ending + 1
