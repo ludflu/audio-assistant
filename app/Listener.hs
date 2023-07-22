@@ -145,7 +145,7 @@ getListenerState = do
   listener <- get
   wasRecordingReset <- liftIO $ tryTakeMVar $ audioReset listener
   mail <- liftIO $ tryTakeMVar $ mailbox listener
-  when (isJust mail) (mapM_ say mail)
+  when (isJust mail) (mapM_ (\x -> say "reminder!" >> say x) mail)
   resetOffset wasRecordingReset
   get
 
@@ -166,7 +166,7 @@ listenWithThreshold threshold = do
   listener <- getListenerState
   env <- ask
   when (timeOffset listener > fromIntegral (recordingLength env)) (liftIO $ print "max time exceeded")
-  -- when (debug env) (liftIO $ debugPrint listener)
+  when (debug env) (liftIO $ debugPrint listener)
   (voiceActivations, length) <- liftIO $ readSlice (path listener) (timeOffset listener) (segmentDuration env) (audioRate env) (vad listener)
   let ending = timeOffset listener + length
       elapsed = if length > 0 then ending else ending + 1
