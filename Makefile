@@ -15,3 +15,6 @@ dep:
 build:
 	cabal clean
 	cabal build
+
+test:
+	cabal test
