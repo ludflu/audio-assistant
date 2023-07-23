@@ -88,6 +88,10 @@ test-suite vad-tests
       tests,
       app
   main-is: Tests.hs
+  other-modules:
+      ConfigParser,
+      SendAudio,
+      VoiceDetectionSliceReader
   build-depends:
       base >= 4.7 && < 5,
       mtl,
