@@ -5,7 +5,7 @@ app/Main.hs vad-audio:
 
 run:
 	cabal clean
-	cabal run vad-audio -- --debug --recordingLength 300 --wavpath tmp
+	cabal run vad-audio -- --debug --recordingLength 1200 --wavpath tmp
 
 dep:
 	sudo apt install pulseaudio
@@ -15,3 +15,6 @@ dep:
 build:
 	cabal clean
 	cabal build
+
+test:
+	cabal test

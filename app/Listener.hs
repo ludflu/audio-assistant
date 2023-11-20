@@ -31,7 +31,6 @@ import SendAudio (sendAudio)
 import Sound.VAD.WebRTC as Vad
   ( VAD,
   )
-import SpeechApi (sayText)
 import System.Directory (doesFileExist)
 import System.Process (readProcess)
 import VoiceDetectionSliceReader (readSlice, writeBoundedWave)

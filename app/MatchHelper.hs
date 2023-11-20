@@ -4,7 +4,7 @@
 module MatchHelper where
 
 import Control.Applicative ((<|>))
-import Data.Char (isNumber, toLower)
+import Data.Char (isLower, isNumber, isSpace, toLower)
 import qualified Data.Map as M
 import qualified Data.Text as T
 import Text.Read (readMaybe)
@@ -59,3 +59,12 @@ parseInt str = readMaybe $ dropNonNumbers str
 
 readInt :: String -> Maybe Integer
 readInt str = parseInt str <|> lookupNum str
+
+lowerCase :: [Char] -> [Char]
+lowerCase = map toLower
+
+dropNonLetters :: String -> String
+dropNonLetters = filter (\x -> isLower x || isSpace x || isNumber x)
+
+fuzzyMatch :: String -> Regex -> [(String, [String])]
+fuzzyMatch s r = scan r s

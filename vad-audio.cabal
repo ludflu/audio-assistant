@@ -77,7 +77,6 @@ executable vad-audio
                       safe-exceptions,
                       directory,
                       monad-loops
-		              
     hs-source-dirs:   app, lib
     default-language: Haskell2010
     default-extensions:  QuasiQuotes, FlexibleContexts
@@ -89,6 +88,10 @@ test-suite vad-tests
       tests,
       app
   main-is: Tests.hs
+  other-modules:
+      ConfigParser,
+      SendAudio,
+      VoiceDetectionSliceReader
   build-depends:
       base >= 4.7 && < 5,
       mtl,
@@ -120,5 +123,8 @@ test-suite vad-tests
       HaskellNet,
       HaskellNet-SSL,
       tasty,
-      tasty-hunit
+      tasty-hunit,
+      retry,
+      safe-exceptions,
+      monad-loops
 
