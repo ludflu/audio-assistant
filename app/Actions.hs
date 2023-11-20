@@ -66,7 +66,7 @@ regexResponses =
       ([re|computer set a reminder for (.*) minutes|], setReminder),
       ([re|email the note|], const sendEmailNote),
       ([re|i love you computer|], \x -> speak "I love you too!"),
-      ([re|okay genius (.*)|], \x -> (askAndAcknowledge $ head x) >> speak "Thinking!")
+      ([re|okay genius (.*)|], \x -> speak "Thinking!" >> (askAndAcknowledge $ head x))
     ]
 
 dispatchRegex :: M.Map Regex ([String] -> ListenerMonad String) -> String -> Maybe (ListenerMonad String)
