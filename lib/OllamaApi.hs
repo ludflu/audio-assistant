@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -26,14 +27,14 @@ import Network.HTTP.Req
     (/:),
   )
 
-newtype OllamaRequest = OllamaRequest
+data OllamaRequest = OllamaRequest
   { model :: String,
     prompt :: String,
     stream :: Bool
   }
   deriving (Generic)
 
-newtype OllamaResponse = OllamaResponse
+data OllamaResponse = OllamaResponse
   { model :: String,
     created_at :: String,
     response :: String,
@@ -56,11 +57,11 @@ instance FromJSON OllamaResponse
 getAnswer :: JsonResponse OllamaResponse -> String
 getAnswer jr =
   let sr = responseBody jr
-   in answer sr
+   in response sr
 
 askQuestion :: String -> IO String
 askQuestion question = runReq defaultHttpConfig $ do
-  let payload = OllamaRequest ("In one sentence: " + question)
+  let payload = OllamaRequest {model = "ollama2", prompt = question, stream = False}
   let reqBody = ReqBodyJson payload
   let url = "127.0.0.1"
   let apiPort = 11434
