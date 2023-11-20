@@ -40,9 +40,12 @@ newtype OllamaResponse = OllamaResponse
     done :: Bool,
     total_duration :: Int,
     load_duration :: Int,
+    sample_count :: Int,
+    sample_duration :: Int,
+    prompt_eval_count :: Int,
     prompt_eval_duration :: Int,
     eval_count :: Int,
-    prompt_eval_duration :: Int
+    eval_duration :: Int
   }
   deriving (Generic)
 
