@@ -3,7 +3,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module OllamaApi (askQuestion) where
+module OllamaApi (answerQuestion) where
 
 import Control.Monad.IO.Class ()
 import Data.Aeson (FromJSON, ToJSON, Value (Number, Object, String), fromJSON, parseJSON)
@@ -58,8 +58,8 @@ getAnswer jr =
   let sr = responseBody jr
    in response sr
 
-askQuestion :: String -> IO String
-askQuestion question = runReq defaultHttpConfig $ do
+answerQuestion :: String -> IO String
+answerQuestion question = runReq defaultHttpConfig $ do
   let payload = OllamaRequest {model = "llama2", prompt = "In one sentence: " ++ question, stream = False}
   let reqBody = ReqBodyJson payload
   let url = "127.0.0.1"
