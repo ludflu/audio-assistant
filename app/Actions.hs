@@ -30,10 +30,10 @@ import Data.Time.LocalTime
 import Data.Time.LocalTime.TimeZone.Olson ()
 import Data.Time.LocalTime.TimeZone.Series
 import Data.Traversable
-import DavinciApi (askQuestion)
 import Guess (guessingGame)
 import Listener (ListenerMonad, quitNow, speak)
 import MatchHelper (dropNonLetters, fuzzyMatch, isMatch, lowerCase)
+import OllamaApi (askQuestion)
 import RecordNote (readNote, recordNote)
 import Reminders (setReminder)
 import SayDateTime (currentDay, currentTime)
@@ -59,7 +59,7 @@ regexResponses =
       ([re|computer set a reminder for (.*) minutes|], setReminder),
       ([re|email the note|], const sendEmailNote),
       ([re|i love you computer|], \x -> speak "I love you too!"),
-      ([re|okay genius (.*)|], liftIO . DavinciApi.askQuestion . head)
+      ([re|okay genius (.*)|], liftIO . OllamaApi.askQuestion . head)
     ] -- hey davinci
 
 dispatchRegex :: M.Map Regex ([String] -> ListenerMonad String) -> String -> Maybe (ListenerMonad String)
