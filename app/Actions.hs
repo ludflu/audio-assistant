@@ -17,6 +17,7 @@ import Control.Monad.State
     gets,
     lift,
   )
+import Data.Bits (Bits (xor))
 import Data.Char (isLower, isNumber, isSpace, toLower)
 import Data.List (find)
 import qualified Data.Map as M
@@ -30,10 +31,10 @@ import Data.Time.LocalTime
 import Data.Time.LocalTime.TimeZone.Olson ()
 import Data.Time.LocalTime.TimeZone.Series
 import Data.Traversable
-import DavinciApi (askQuestion)
 import Guess (guessingGame)
-import Listener (ListenerMonad, quitNow, speak)
+import Listener (ListenerMonad, quitNow, say, speak)
 import MatchHelper (dropNonLetters, fuzzyMatch, isMatch, lowerCase)
+import OllamaApi (answerQuestion)
 import RecordNote (readNote, recordNote)
 import Reminders (setReminder)
 import SayDateTime (currentDay, currentTime)
@@ -42,10 +43,17 @@ import System.Process
 import Text.Regex.PCRE.Heavy (Regex, re, scan)
 import WeatherFetcher (getWeather)
 
+type ListenerAction = [String] -> ListenerMonad String
+
 greet :: [String] -> String
 greet params = "Hello " ++ head params ++ " its nice to meet you"
 
-regexResponses :: M.Map Regex ([String] -> ListenerMonad String)
+acknowledgeAndAnswer :: String -> ListenerMonad String
+acknowledgeAndAnswer question = do
+  _ <- say "Thinking...  "
+  liftIO $ OllamaApi.answerQuestion question
+
+regexResponses :: M.Map Regex ListenerAction
 regexResponses =
   M.fromList
     [ ([re|computer my name is (.*)|], speak . greet),
@@ -59,8 +67,8 @@ regexResponses =
       ([re|computer set a reminder for (.*) minutes|], setReminder),
       ([re|email the note|], const sendEmailNote),
       ([re|i love you computer|], \x -> speak "I love you too!"),
-      ([re|okay genius (.*)|], liftIO . DavinciApi.askQuestion . head)
-    ] -- hey davinci
+      ([re|okay genius (.*)|], acknowledgeAndAnswer . head)
+    ]
 
 dispatchRegex :: M.Map Regex ([String] -> ListenerMonad String) -> String -> Maybe (ListenerMonad String)
 dispatchRegex responses query =
