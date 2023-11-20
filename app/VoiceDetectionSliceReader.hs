@@ -63,9 +63,9 @@ convertIntegral = DCA.mapSamples DCA.integralSample
 
 detectVoice :: PrimMonad m => Vad.VAD (PrimState m) -> [V.Vector Int16] -> Double -> m [Bool]
 detectVoice vd ss rate =
-  let func s = Vad.process (round rate) s vd
+  let detectVoiceActivity sample = Vad.process (round rate) sample vd
       validFrames = filter (\vs -> V.length vs == workingChunkSize rate) ss
-   in mapM func validFrames
+   in mapM detectVoiceActivity validFrames
 
 writeBoundedWave :: FilePath -> FilePath -> Double -> Double -> Double -> IO ()
 writeBoundedWave oldPath newPath start end rate =
