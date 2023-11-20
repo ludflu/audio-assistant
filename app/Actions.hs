@@ -32,7 +32,7 @@ import Data.Time.LocalTime.TimeZone.Olson ()
 import Data.Time.LocalTime.TimeZone.Series
 import Data.Traversable
 import Guess (guessingGame)
-import Listener (ListenerMonad, quitNow, speak)
+import Listener (ListenerMonad, quitNow, say, speak)
 import MatchHelper (dropNonLetters, fuzzyMatch, isMatch, lowerCase)
 import OllamaApi (answerQuestion)
 import RecordNote (readNote, recordNote)
@@ -50,7 +50,7 @@ greet params = "Hello " ++ head params ++ " its nice to meet you"
 
 acknowledgeAndAnswer :: String -> ListenerMonad String
 acknowledgeAndAnswer question = do
-  speak "thinking..."
+  _ <- say "thinking..."
   liftIO $ OllamaApi.answerQuestion question
 
 regexResponses :: M.Map Regex ListenerAction
