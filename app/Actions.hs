@@ -50,7 +50,7 @@ greet params = "Hello " ++ head params ++ " its nice to meet you"
 
 acknowledgeAndAnswer :: String -> ListenerMonad String
 acknowledgeAndAnswer question = do
-  _ <- say "thinking..."
+  _ <- say "Thinking...  "
   liftIO $ OllamaApi.answerQuestion question
 
 regexResponses :: M.Map Regex ListenerAction
