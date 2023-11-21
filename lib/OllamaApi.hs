@@ -52,7 +52,7 @@ data OllamaResponse = OllamaResponse
     response :: String,
     done :: Bool,
     context :: Maybe [Int],
-    total_duration :: Int,
+    total_duration :: Maybe Int,
     load_duration :: Int,
     prompt_eval_count :: Int,
     prompt_eval_duration :: Int,
