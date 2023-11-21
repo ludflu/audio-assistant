@@ -77,6 +77,7 @@ answerQuestion question = runReq defaultHttpConfig $ do
   let url = "127.0.0.1"
   let apiPort = 11434
 
+  _ <- liftIO $ putStrLn question
   r <-
     req
       POST
