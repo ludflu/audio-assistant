@@ -38,7 +38,7 @@ conduitChunks trigger = do
   let triggerByte = fromIntegral (fromEnum trigger)
   awaitForever $ \bs -> do
     let (prefix, suffix) = BSL.break (== triggerByte) bs
-    unless (BSL.null prefix) $ yield prefix
+    unless (BSL.null prefix) $ yield $ prefix <> "}"
     unless (BSL.null suffix) $ do
       let rest = BSL.drop 1 suffix
       unless (BSL.null rest) $ leftover rest
