@@ -22,6 +22,7 @@ import Network.HTTP.Req
     POST (POST),
     ReqBodyJson (ReqBodyJson),
     defaultHttpConfig,
+    handleHttpException,
     http,
     jsonResponse,
     port,
@@ -34,8 +35,8 @@ import Network.HTTP.Req
   )
 import Network.HTTP.Req.Conduit
 
--- instance MonadHttp (ConduitM i o (ResourceT IO)) where
---   handleHttpException = liftIO . throwIO
+instance MonadHttp (ConduitM i o (ResourceT IO)) where
+  handleHttpException = liftIO . throwIO
 
 data OllamaRequest = OllamaRequest
   { model :: String,
