@@ -16,6 +16,7 @@ import qualified Data.Conduit.Binary as CB
 import Data.Maybe
 import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf8)
+import Data.Word
 import GHC.Generics (Generic)
 
 data OllamaResponse = OllamaResponse
@@ -31,13 +32,13 @@ packStr :: String -> B.ByteString
 packStr = encodeUtf8 . T.pack
 
 testString :: BSL.ByteString
-testString = BSL.fromStrict $ packStr "{\"model\":\"model\",\"created_at\":\"created_at\",\"response\":\"response1\"}{\"model\":\"model\",\"created_at\":\"created_at\",\"response\":\"response2\"}"
+testString = BSL.fromStrict $ packStr "{\"model\":\"model\",\"created_at\":\"created_at\",\"response\":\"response1\"}{\"model\":\"model\",\"created_at\":\"created_at\",\"response\":\",\"}{\"model\":\"model\",\"created_at\":\"created_at\",\"response\":\"response2\"}"
 
 makeResponseChunk :: BSL.ByteString -> Maybe OllamaResponse
 makeResponseChunk = decode
 
-conduitChunks :: Monad m => Char -> ConduitT BSL.ByteString BSL.ByteString m ()
-conduitChunks trigger = do
+jsonChunks :: Monad m => Char -> ConduitT BSL.ByteString BSL.ByteString m ()
+jsonChunks trigger = do
   let triggerByte = fromIntegral (fromEnum trigger)
   awaitForever $ \bs -> do
     let (prefix, suffix) = BSL.break (== triggerByte) bs
@@ -46,10 +47,30 @@ conduitChunks trigger = do
       let rest = BSL.drop 1 suffix
       unless (BSL.null rest) $ leftover rest
 
+isPunct :: Char -> Bool
+isPunct c =
+  let ps :: String = "!.,?'"
+   in c `elem` ps
+
+word8ToChar :: Word8 -> Char
+word8ToChar = toEnum . fromEnum
+
+sentenceChunks :: Monad m => ConduitT BSL.ByteString BSL.ByteString m ()
+sentenceChunks = do
+  awaitForever $ \bs -> do
+    let (prefix, suffix) = BSL.break (isPunct . word8ToChar) bs
+    unless (BSL.null prefix) $ yield $ prefix <> prefix
+    unless (BSL.null suffix) $ do
+      let rest = BSL.drop 1 suffix
+      unless (BSL.null rest) $ leftover rest
+
 chunker :: IO ()
 chunker =
   runConduitRes $
     yield testString
-      .| conduitChunks '}'
+      .| jsonChunks '}'
       .| mapC makeResponseChunk
+      .| filterC isJust
+      .| mapC fromJust
+      .| mapC response
       .| mapM_C (liftIO . putStrLn . ("Processing chunk: " ++) . show)
