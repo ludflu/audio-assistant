@@ -27,9 +27,9 @@ we use the [conduit-audio](https://hackage.haskell.org/package/conduit-audio) mo
 - [x] email someone
 - [x] create memo
 - [x] generic question answering via API
+- [x] set reminders
 - [ ] report the weather
 - [ ] manage contacts (CRUD + search)
-- [ ] set reminders
 - [ ] manage calendar items
 
 ## Building
