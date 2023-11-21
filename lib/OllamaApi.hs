@@ -2,6 +2,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module OllamaApi (answerQuestion) where
 
@@ -15,6 +16,7 @@ import qualified Data.Conduit.Binary as CB
 import Data.Scientific (toRealFloat)
 import Data.Text (Text, unpack)
 import GHC.Generics (Generic)
+import Network.HTTP.Client (BodyReader, Response)
 import qualified Network.HTTP.Client.MultipartFormData as LM
 import Network.HTTP.Req
   ( JsonResponse,
@@ -99,6 +101,6 @@ answerQuestion2 question = runConduitRes $ do
     (http url /: "api" /: "generate")
     reqBody
     mempty
-    ( \r -> do
+    ( \(r :: Response BodyReader) -> do
         runConduitRes $ responseBodySource r .| CB.sinkFile "my-file.bin"
     )

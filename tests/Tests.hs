@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wno-missing-fields #-}
 
+import ConduitTests
 import Listener
   ( ListenerState
       ( ListenerState,
@@ -14,7 +15,7 @@ import Test.Tasty (TestTree, defaultMain, testGroup)
 import Test.Tasty.HUnit (testCase, (@?=))
 
 main :: IO ()
-main = defaultMain testCalcBoundary
+main = defaultMain allTests
 
 testCalcBoundary :: TestTree
 testCalcBoundary =
@@ -39,5 +40,5 @@ testCalcBoundary =
            in voiceEnd boundary @?= voiceEnd expected
     ]
 
-tests :: TestTree
-tests = testGroup "my tests" [testCase "Simple test" $ True @?= True]
+allTests :: TestTree
+allTests = testGroup "all tests" [testCalcBoundary, testConduit]

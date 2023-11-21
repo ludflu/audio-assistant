@@ -45,6 +45,7 @@ executable vad-audio
                    Reminders
 
     build-depends:    base,
+                      bytestring,
                       mtl,
                       hsndfile,
                       conduit,
@@ -97,6 +98,7 @@ test-suite vad-tests
       VoiceDetectionSliceReader
   build-depends:
       base >= 4.7 && < 5,
+      bytestring,
       mtl,
       hsndfile,
       conduit,
