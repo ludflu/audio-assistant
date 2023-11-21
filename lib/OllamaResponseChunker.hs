@@ -32,7 +32,7 @@ packStr :: String -> B.ByteString
 packStr = encodeUtf8 . T.pack
 
 testString :: BSL.ByteString
-testString = BSL.fromStrict $ packStr "{\"model\":\"model\",\"created_at\":\"created_at\",\"response\":\"response1\"}{\"model\":\"model\",\"created_at\":\"created_at\",\"response\":\",\"}{\"model\":\"model\",\"created_at\":\"created_at\",\"response\":\"response2\"}"
+testString = BSL.fromStrict $ packStr "{\"model\":\"model\",\"created_at\":\"created_at\",\"response\":\"response1\"}{\"model\":\"model\",\"created_at\":\"created_at\",\"response\":\".\"}{\"model\":\"model\",\"created_at\":\"created_at\",\"response\":\"response2\"}"
 
 makeResponseChunk :: BSL.ByteString -> Maybe OllamaResponse
 makeResponseChunk = decode
@@ -49,7 +49,7 @@ jsonChunks trigger = do
 
 isPunct :: Char -> Bool
 isPunct c =
-  let ps :: String = "!.,?'"
+  let ps :: String = "!.?'"
    in c `elem` ps
 
 word8ToChar :: Word8 -> Char
@@ -59,10 +59,8 @@ sentenceChunks :: Monad m => ConduitT BSL.ByteString BSL.ByteString m ()
 sentenceChunks = do
   awaitForever $ \bs -> do
     let (prefix, suffix) = BSL.break (isPunct . word8ToChar) bs
-    unless (BSL.null prefix) $ yield $ prefix <> prefix
-    unless (BSL.null suffix) $ do
-      let rest = BSL.drop 1 suffix
-      unless (BSL.null rest) $ leftover rest
+    unless (BSL.null prefix) $ yield prefix
+    unless (BSL.null suffix) $ leftover suffix
 
 chunker :: IO ()
 chunker =
