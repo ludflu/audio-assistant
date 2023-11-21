@@ -90,7 +90,6 @@ answerQuestion question = runReq defaultHttpConfig $ do
   return $
     getAnswer r
 
--- answerQuestion2 :: String -> IO String
 answerQuestion2 question = runConduitRes $ do
   let payload = OllamaRequest {model = "llama2", prompt = question, stream = False}
   let reqBody = ReqBodyJson payload

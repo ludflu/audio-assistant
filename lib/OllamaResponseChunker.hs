@@ -62,6 +62,16 @@ sentenceChunks = do
     unless (BSL.null prefix) $ yield prefix
     unless (BSL.null suffix) $ leftover suffix
 
+chunker2 src =
+  runConduitRes $
+    src
+      .| jsonChunks '}'
+      .| mapC makeResponseChunk
+      .| filterC isJust
+      .| mapC fromJust
+      .| mapC response
+      .| mapM_C (liftIO . putStrLn . ("Processing chunk: " ++) . show)
+
 chunker :: IO ()
 chunker =
   runConduitRes $
