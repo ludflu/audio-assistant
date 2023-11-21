@@ -4,7 +4,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module OllamaResponseChunker (chunker2) where
+module OllamaResponseChunker (chunker2, chunker) where
 
 import Conduit
 import Control.Monad (unless, when)

@@ -37,7 +37,7 @@ import Network.HTTP.Req
     (/:),
   )
 import Network.HTTP.Req.Conduit
-import OllamaResponseChunker (chunker2)
+import OllamaResponseChunker (chunker, chunker2)
 
 instance MonadHttp (ConduitM i o (ResourceT IO)) where
   handleHttpException = liftIO . throwIO
@@ -100,7 +100,7 @@ answerQuestion2 question = runConduitRes $ do
     POST
     (http url /: "api" /: "generate")
     reqBody
-    mempty
+    lbsResponse
     ( \(r :: Response BodyReader) -> do
         chunker2 $ responseBodySource r
         -- runConduitRes $ responseBodySource r .| CB.sinkFile "my-file.bin"
