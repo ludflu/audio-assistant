@@ -9,38 +9,16 @@ import qualified Data.Conduit.Binary as CB
 import Data.Maybe
 import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf8)
+import OllamaResponseChunker
 import Test.Tasty (TestTree, defaultMain, testGroup)
 import Test.Tasty.HUnit (assertEqual, testCase, (@?=))
 
-packStr :: String -> B.ByteString
-packStr = encodeUtf8 . T.pack
-
-testString :: BSL.ByteString
-testString = BSL.fromStrict $ packStr "{\"test\":\"1 bla\" \"done\"=False}{\"test\":\"2 bla\" \"done\"=False}{\"test\":\"3 bla\" \"done\"=False}"
-
-runc :: IO ()
-runc =
-  runConduitRes $
-    yield testString
-      .| conduitChunks '}'
-      .| mapM_C (liftIO . putStrLn . ("Processing chunk: " ++) . show)
-
-expected = ()
-
-conduitChunks :: Monad m => Char -> ConduitT BSL.ByteString BSL.ByteString m ()
-conduitChunks trigger = do
-  let triggerByte = fromIntegral (fromEnum trigger)
-  awaitForever $ \bs -> do
-    let (prefix, suffix) = BSL.break (== triggerByte) bs
-    unless (BSL.null prefix) $ yield prefix
-    when (not (BSL.null suffix)) $ do
-      let rest = BSL.drop 1 suffix
-      unless (BSL.null rest) $ leftover rest
-
 tc :: TestTree
 tc = testCase "testing" $ do
-  _ <- runc
+  _ <- chunker
   assertEqual "expected" expected ()
+
+expected = ()
 
 testConduit =
   testGroup

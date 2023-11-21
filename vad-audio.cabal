@@ -42,6 +42,7 @@ executable vad-audio
                    SendEmail,
                    VoiceDetectionSliceReader,
                    OllamaApi,
+                   OllamaResponseChunker,
                    Reminders
 
     build-depends:    base,
@@ -90,12 +91,14 @@ test-suite vad-tests
   other-modules: Listener
   hs-source-dirs:
       tests,
-      app
+      app,
+      lib
   main-is: Tests.hs
   other-modules:
       ConfigParser,
       SendAudio,
-      VoiceDetectionSliceReader
+      VoiceDetectionSliceReader,
+      OllamaResponseChunker
   build-depends:
       base >= 4.7 && < 5,
       bytestring,
