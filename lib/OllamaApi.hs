@@ -5,15 +5,20 @@
 
 module OllamaApi (answerQuestion) where
 
-import Control.Monad.IO.Class ()
+import Control.Exception (throwIO)
+import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Trans.Resource (ResourceT)
 import Data.Aeson (FromJSON, ToJSON, Value (Number, Object, String), fromJSON, parseJSON)
 import qualified Data.Aeson.KeyMap as AKM
+import Data.Conduit (ConduitM, runConduitRes, (=$=))
+import qualified Data.Conduit.Binary as CB
 import Data.Scientific (toRealFloat)
 import Data.Text (Text, unpack)
 import GHC.Generics (Generic)
 import qualified Network.HTTP.Client.MultipartFormData as LM
 import Network.HTTP.Req
   ( JsonResponse,
+    MonadHttp,
     POST (POST),
     ReqBodyJson (ReqBodyJson),
     defaultHttpConfig,
@@ -21,11 +26,16 @@ import Network.HTTP.Req
     jsonResponse,
     port,
     req,
+    req',
     reqBodyMultipart,
     responseBody,
     runReq,
     (/:),
   )
+import Network.HTTP.Req.Conduit
+
+-- instance MonadHttp (ConduitM i o (ResourceT IO)) where
+--   handleHttpException = liftIO . throwIO
 
 data OllamaRequest = OllamaRequest
   { model :: String,
@@ -74,3 +84,12 @@ answerQuestion question = runReq defaultHttpConfig $ do
       $ port apiPort
   return $
     getAnswer r
+
+-- answerQuestion2 :: String -> IO String
+answerQuestion2 question = runConduitRes $ do
+  let payload = OllamaRequest {model = "llama2", prompt = "In one sentence: " ++ question, stream = False}
+  let reqBody = ReqBodyJson payload
+  let url = "127.0.0.1"
+  let apiPort = 11434
+  req' POST (http url /: "api" /: "generate") reqBody mempty httpSource
+    =$= CB.sinkFile "/tmp/my-favorite-file.bin"

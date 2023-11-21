@@ -41,7 +41,7 @@ executable vad-audio
                    WeatherFetcher,
                    SendEmail,
                    VoiceDetectionSliceReader,
-                   DavinciApi,
+                   OllamaApi,
                    Reminders
 
     build-depends:    base,
@@ -52,6 +52,9 @@ executable vad-audio
                       conduit-audio,
                       conduit-audio-lame,
                       conduit-audio-sndfile,
+                      req-conduit,
+                      resourcet,
+                      conduit-extra,
                       webrtc-vad,
                       vector,
                       aeson,
