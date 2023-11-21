@@ -51,7 +51,7 @@ data OllamaResponse = OllamaResponse
     created_at :: String,
     response :: String,
     done :: Bool,
-    context :: [Int],
+    context :: Maybe [Int],
     total_duration :: Int,
     load_duration :: Int,
     prompt_eval_count :: Int,
