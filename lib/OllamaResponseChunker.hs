@@ -8,7 +8,7 @@ module OllamaResponseChunker (chunker) where
 
 import Conduit
 import Control.Monad (unless, when)
-import Data.Aeson (FromJSON, ToJSON, Value (Number, Object, String), fromJSON, parseJSON)
+import Data.Aeson (FromJSON, ToJSON, Value (Number, Object, String), decode, fromJSON, parseJSON)
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BSL
 import Data.Char
@@ -23,7 +23,7 @@ data OllamaResponse = OllamaResponse
     created_at :: String,
     response :: String
   }
-  deriving (Generic)
+  deriving (Generic, Show)
 
 instance FromJSON OllamaResponse
 
@@ -32,6 +32,9 @@ packStr = encodeUtf8 . T.pack
 
 testString :: BSL.ByteString
 testString = BSL.fromStrict $ packStr "{\"test\":\"1 bla\" \"done\"=False}{\"test\":\"2 bla\" \"done\"=False}{\"test\":\"3 bla\" \"done\"=False}"
+
+makeResponseChunk :: BSL.ByteString -> Maybe OllamaResponse
+makeResponseChunk bs = decode bs
 
 conduitChunks :: Monad m => Char -> ConduitT BSL.ByteString BSL.ByteString m ()
 conduitChunks trigger = do
@@ -48,4 +51,5 @@ chunker =
   runConduitRes $
     yield testString
       .| conduitChunks '}'
+      .| mapC makeResponseChunk
       .| mapM_C (liftIO . putStrLn . ("Processing chunk: " ++) . show)
