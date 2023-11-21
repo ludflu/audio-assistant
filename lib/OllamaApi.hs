@@ -53,7 +53,7 @@ data OllamaResponse = OllamaResponse
     done :: Bool,
     context :: Maybe [Int],
     total_duration :: Maybe Int,
-    load_duration :: Int,
+    load_duration :: Maybe Int,
     prompt_eval_count :: Int,
     prompt_eval_duration :: Int,
     eval_count :: Int,
@@ -72,7 +72,7 @@ getAnswer jr =
 
 answerQuestion :: String -> IO String
 answerQuestion question = runReq defaultHttpConfig $ do
-  let payload = OllamaRequest {model = "llama2", prompt = question, stream = False}
+  let payload = OllamaRequest {model = "llama2", prompt = "In one sentence: " ++ question, stream = False}
   let reqBody = ReqBodyJson payload
   let url = "127.0.0.1"
   let apiPort = 11434
