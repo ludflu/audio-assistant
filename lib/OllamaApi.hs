@@ -10,7 +10,7 @@ import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Trans.Resource (ResourceT)
 import Data.Aeson (FromJSON, ToJSON, Value (Number, Object, String), fromJSON, parseJSON)
 import qualified Data.Aeson.KeyMap as AKM
-import Data.Conduit (ConduitM, runConduitRes, (=$=))
+import Data.Conduit (ConduitM, runConduitRes, (.|), (=$=))
 import qualified Data.Conduit.Binary as CB
 import Data.Scientific (toRealFloat)
 import Data.Text (Text, unpack)
@@ -29,6 +29,7 @@ import Network.HTTP.Req
     req,
     req',
     reqBodyMultipart,
+    reqBr,
     responseBody,
     runReq,
     (/:),
@@ -92,5 +93,11 @@ answerQuestion2 question = runConduitRes $ do
   let reqBody = ReqBodyJson payload
   let url = "127.0.0.1"
   let apiPort = 11434
-  req' POST (http url /: "api" /: "generate") reqBody mempty httpSource
-    =$= CB.sinkFile "/tmp/my-favorite-file.bin"
+  reqBr
+    POST
+    (http url /: "api" /: "generate")
+    reqBody
+    mempty
+    ( \r -> do
+        runConduitRes $ responseBodySource r .| CB.sinkFile "my-file.bin"
+    )
