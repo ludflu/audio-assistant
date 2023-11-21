@@ -31,10 +31,10 @@ packStr :: String -> B.ByteString
 packStr = encodeUtf8 . T.pack
 
 testString :: BSL.ByteString
-testString = BSL.fromStrict $ packStr "{\"test\":\"1 bla\" \"done\"=False}{\"test\":\"2 bla\" \"done\"=False}{\"test\":\"3 bla\" \"done\"=False}"
+testString = BSL.fromStrict $ packStr "{\"model\":\"model\",\"created_at\":\"created_at\",\"response\":\"response1\"}{\"model\":\"model\",\"created_at\":\"created_at\",\"response\":\"response2\"}"
 
 makeResponseChunk :: BSL.ByteString -> Maybe OllamaResponse
-makeResponseChunk bs = decode bs
+makeResponseChunk = decode
 
 conduitChunks :: Monad m => Char -> ConduitT BSL.ByteString BSL.ByteString m ()
 conduitChunks trigger = do
