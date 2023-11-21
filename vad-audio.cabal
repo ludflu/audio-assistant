@@ -102,6 +102,7 @@ test-suite vad-tests
       mtl,
       hsndfile,
       conduit,
+      conduit-extra,
       conduit-audio-samplerate,
       conduit-audio,
       conduit-audio-lame,
