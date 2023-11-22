@@ -7,10 +7,11 @@
 
 module OllamaApi (answerQuestion) where
 
-import Conduit (ConduitM, ConduitT, awaitForever, filterC, leftover, mapC, mapM_C, runConduit, runConduitRes, sourceLazy, yield, (.|))
+import Conduit (ConduitM, ConduitT, awaitForever, filterC, leftover, mapC, mapM_C, runConduit, runConduitRes, sinkLazy, sourceLazy, yield, (.|))
 import Control.Exception (throwIO)
 import Control.Monad (unless, when)
 import Control.Monad.IO.Class (MonadIO (..))
+import qualified Control.Monad.RWS as BLS
 import Control.Monad.Trans.Resource (ResourceT, runResourceT)
 import Data.Aeson (FromJSON, ToJSON, Value (Number, Object, String), decode, encode, fromJSON, json, parseJSON)
 import qualified Data.Aeson.KeyMap as AKM
@@ -61,12 +62,15 @@ instance ToJSON OllamaRequest
 
 instance FromJSON OllamaResponse
 
-getAnswer :: BLS.ByteString -> Maybe String
-getAnswer llamaRsp =
-  let rsp = decode llamaRsp
-   in fmap
-        response
-        rsp
+-- getAnswer :: BLS.ByteString -> Maybe String
+-- getAnswer llamaRsp =
+--   let rsp = decode llamaRsp
+--    in fmap
+--         response
+--         rsp
+
+getAnswer :: OllamaResponse -> String
+getAnswer = response
 
 jsonChunks :: Monad m => Char -> ConduitM B.ByteString B.ByteString m ()
 jsonChunks trigger = do
@@ -86,12 +90,12 @@ isPunct c =
 word8ToChar :: Word8 -> Char
 word8ToChar = toEnum . fromEnum
 
-sentenceChunks :: Monad m => ConduitT BLS.ByteString BLS.ByteString m ()
+sentenceChunks :: Monad m => ConduitM B.ByteString B.ByteString m ()
 sentenceChunks = do
   awaitForever $ \bs -> do
-    let (prefix, suffix) = BLS.break (isPunct . word8ToChar) bs
-    unless (BLS.null prefix) $ yield prefix
-    unless (BLS.null suffix) $ leftover suffix
+    let (prefix, suffix) = B.break (isPunct . word8ToChar) bs
+    unless (B.null prefix) $ yield prefix
+    unless (B.null suffix) $ leftover suffix
 
 makeResponseChunk :: B.ByteString -> Maybe OllamaResponse
 makeResponseChunk = decode . BLS.fromStrict
@@ -115,7 +119,11 @@ answerQuestion question =
               .| mapC makeResponseChunk
               .| filterC isJust
               .| mapC fromJust
+              .| mapC getAnswer
               .| mapM_C (liftIO . putStrLn . ("Processing chunk: " ++) . show)
+
+-- .| mapC sentenceChunks
+-- .| mapM_C (liftIO . putStrLn . ("Processing chunk: " ++) . show)
 
 -- runConduitRes $ responseSource |. jsonChunks
 
