@@ -20,6 +20,8 @@ import Data.ByteString.Char8 (unpack)
 import qualified Data.ByteString.Lazy as BLS
 import Data.Conduit.Binary (sinkFile, sinkHandle, sinkLbs, sourceLbs)
 import Data.Maybe (fromJust, isJust, mapMaybe)
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as TE
 import Data.Word (Word8)
 import GHC.Generics (Generic)
 import Network.HTTP.Conduit
@@ -62,13 +64,6 @@ instance ToJSON OllamaRequest
 
 instance FromJSON OllamaResponse
 
--- getAnswer :: BLS.ByteString -> Maybe String
--- getAnswer llamaRsp =
---   let rsp = decode llamaRsp
---    in fmap
---         response
---         rsp
-
 getAnswer :: OllamaResponse -> String
 getAnswer = response
 
@@ -89,6 +84,9 @@ isPunct c =
 
 word8ToChar :: Word8 -> Char
 word8ToChar = toEnum . fromEnum
+
+stringToByteString :: String -> B.ByteString
+stringToByteString = TE.encodeUtf8 . T.pack
 
 sentenceChunks :: Monad m => ConduitM B.ByteString B.ByteString m ()
 sentenceChunks = do
@@ -120,12 +118,6 @@ answerQuestion question =
               .| filterC isJust
               .| mapC fromJust
               .| mapC getAnswer
+              .| mapC stringToByteString
+              .| sentenceChunks
               .| mapM_C (liftIO . putStrLn . ("Processing chunk: " ++) . show)
-
--- .| mapC sentenceChunks
--- .| mapM_C (liftIO . putStrLn . ("Processing chunk: " ++) . show)
-
--- runConduitRes $ responseSource |. jsonChunks
-
--- let llamaRsp = getAnswer rlbs
--- return $ fromJust llamaRsp
