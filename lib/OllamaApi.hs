@@ -8,6 +8,7 @@
 module OllamaApi (answerQuestion) where
 
 import Conduit (ConduitM, ConduitT, MonadResource, awaitForever, filterC, leftover, mapC, mapM_C, runConduit, runConduitRes, sinkLazy, sourceLazy, yield, (.|))
+import Control.Concurrent (forkIO)
 import Control.Concurrent.STM (STM, TQueue, atomically, readTVar, writeTQueue, writeTVar)
 import Control.Exception (throwIO)
 import Control.Monad (liftM, unless, when)
@@ -105,7 +106,16 @@ makeResponseChunk :: B.ByteString -> Maybe OllamaResponse
 makeResponseChunk = decode . BLS.fromStrict
 
 writeToMailBox :: MonadResource m => TQueue a -> a -> m ()
-writeToMailBox mbox msg = liftResourceT $ liftIO $ atomically $ writeTQueue mbox msg
+writeToMailBox mbox msg =
+  liftResourceT $
+    liftIO $
+      atomically $
+        writeTQueue mbox msg
+
+answerQuestion' :: TQueue String -> String -> IO ()
+answerQuestion' mailbox question = do
+  forkIO $ answerQuestion mailbox question
+  return ()
 
 answerQuestion :: TQueue String -> String -> IO ()
 answerQuestion mailbox question =
