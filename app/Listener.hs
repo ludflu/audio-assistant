@@ -9,6 +9,7 @@ module Listener where
 import ConfigParser (EnvConfig (recordingLength), activationThreshold, audioRate, debug, localpath, segmentDuration, sleepSeconds, wavpath)
 import Control.Concurrent (threadDelay)
 import Control.Concurrent.MVar (MVar, tryTakeMVar)
+import Control.Concurrent.STM (STM, TQueue, atomically, readTQueue, tryReadTQueue)
 import Control.Monad (when)
 import Control.Monad.Except (ExceptT)
 import Control.Monad.IO.Class (MonadIO (..))
@@ -45,7 +46,7 @@ data ListenerState = ListenerState
     count :: Int,
     quit :: Bool,
     audioReset :: MVar FilePath,
-    mailbox :: MVar String
+    mailbox :: TQueue String
   }
 
 newtype ListenerMonad a = ListenerMonad (ReaderT EnvConfig (StateT ListenerState IO) a)
@@ -63,7 +64,7 @@ instance MonadState ListenerState ListenerMonad where
   put :: ListenerState -> ListenerMonad ()
   put = ListenerMonad . put
 
-initialState :: Data.Time.Clock.UTCTime -> VAD RealWorld -> MVar FilePath -> MVar String -> FilePath -> ListenerState
+initialState :: Data.Time.Clock.UTCTime -> VAD RealWorld -> MVar FilePath -> TQueue String -> FilePath -> ListenerState
 initialState currentTime vad wasAudioReset mailbox initialPath =
   ListenerState
     { startTime = currentTime,
@@ -143,7 +144,8 @@ getListenerState :: ListenerMonad ListenerState
 getListenerState = do
   listener <- get
   wasRecordingReset <- liftIO $ tryTakeMVar $ audioReset listener
-  mail <- liftIO $ tryTakeMVar $ mailbox listener
+  mail <- liftIO $ atomically $ tryReadTQueue $ mailbox listener
+
   when (isJust mail) (mapM_ say mail)
   resetOffset wasRecordingReset
   get

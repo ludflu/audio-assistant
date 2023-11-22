@@ -48,6 +48,7 @@ executable vad-audio
     build-depends:    base,
                       bytestring,
                       mtl,
+                      stm,
                       hsndfile,
                       conduit,
                       conduit-audio-samplerate,

@@ -3,6 +3,7 @@
 module Reminders where
 
 import Control.Concurrent (MVar, ThreadId, forkIO, putMVar, threadDelay)
+import Control.Concurrent.STM (STM, TQueue, atomically, readTVar, writeTQueue)
 import Control.Monad.State
   ( MonadState (get, put),
     StateT (runStateT),
@@ -14,13 +15,13 @@ import Control.Monad.State
 import Listener (ListenerMonad, ListenerState (mailbox), listenPatiently, say)
 import MatchHelper (readInt)
 
-sendReminder' :: Integer -> String -> MVar String -> IO ()
+sendReminder' :: Integer -> String -> TQueue String -> IO ()
 sendReminder' seconds reminder mailbox = do
   threadDelay (10 ^ 6 * fromInteger seconds * 60)
-  putMVar mailbox reminder
+  liftIO $ atomically $ writeTQueue mailbox reminder
   return ()
 
-sendReminder :: Integer -> String -> MVar String -> IO ()
+sendReminder :: Integer -> String -> TQueue String -> IO ()
 sendReminder seconds reminder mailbox = do
   forkIO $ sendReminder' seconds reminder mailbox
   return ()

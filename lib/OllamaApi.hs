@@ -8,7 +8,7 @@
 module OllamaApi (answerQuestion) where
 
 import Conduit (ConduitM, ConduitT, awaitForever, filterC, leftover, mapC, mapM_C, runConduit, runConduitRes, sinkLazy, sourceLazy, yield, (.|))
-import Control.Concurrent (MVar, putMVar)
+import Control.Concurrent.STM (STM, TQueue, atomically, readTVar, writeTQueue, writeTVar)
 import Control.Exception (throwIO)
 import Control.Monad (liftM, unless, when)
 import Control.Monad.IO.Class (MonadIO (..))
@@ -104,7 +104,13 @@ sentenceChunks = do
 makeResponseChunk :: B.ByteString -> Maybe OllamaResponse
 makeResponseChunk = decode . BLS.fromStrict
 
-answerQuestion :: MVar String -> String -> IO ()
+-- writeToMailBox :: TQueue String -> String -> IO ()
+-- writeToMailBox mailbox = atomically . writeTQueue mailbox
+
+writeToMailBox :: TQueue String -> String -> IO ()
+writeToMailBox mbox = atomically . writeTQueue mbox
+
+answerQuestion :: TQueue String -> String -> IO ()
 answerQuestion mailbox question =
   let payload = OllamaRequest {model = "llama2", prompt = question, stream = False}
       url = "http://127.0.0.1/api/generate"
@@ -114,6 +120,7 @@ answerQuestion mailbox question =
         request' <- parseRequest url
         let request'' = request' {method = "POST", requestBody = body, port = apiPort}
             request = setRequestResponseTimeout (responseTimeoutMicro (500 * 1000000)) request''
+            mboxwriter = writeToMailBox mailbox
         manager <- newManager tlsManagerSettings
         runResourceT $ do
           response <- http request manager
@@ -127,4 +134,4 @@ answerQuestion mailbox question =
               .| mapC stringToByteString
               .| sentenceChunks
               .| mapC byteStringToString
-              .| mapM_C (liftIO . putMVar mailbox) -- TODO put the msg in the mailbox becaue we can't directly speak it because we're not in the ListenerMonad
+              .| mapM_C (mboxwriter)

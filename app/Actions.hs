@@ -9,6 +9,7 @@ module Actions where
 
 import ConfigParser (EnvConfig (mailPassword, mailUser))
 import Control.Concurrent.MVar (MVar, tryTakeMVar)
+import Control.Concurrent.STM (STM, TQueue, atomically, readTVar, writeTVar)
 import Control.Monad.Reader (MonadReader, ReaderT, ask, liftIO, runReaderT)
 import Control.Monad.ST (RealWorld)
 import Control.Monad.State
@@ -49,7 +50,7 @@ type ListenerAction = [String] -> ListenerMonad String
 greet :: [String] -> String
 greet params = "Hello " ++ head params ++ " its nice to meet you"
 
-acknowledgeAndAnswer :: MVar String -> [String] -> ListenerMonad ()
+acknowledgeAndAnswer :: TQueue String -> [String] -> ListenerMonad ()
 acknowledgeAndAnswer mailbox question = do
   _ <- say "Thinking...  "
   liftIO $ OllamaApi.answerQuestion mailbox (head question)
