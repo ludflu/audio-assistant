@@ -48,10 +48,11 @@ type ListenerAction = [String] -> ListenerMonad String
 greet :: [String] -> String
 greet params = "Hello " ++ head params ++ " its nice to meet you"
 
-acknowledgeAndAnswer :: String -> ListenerMonad String
+acknowledgeAndAnswer :: [String] -> ListenerMonad ()
 acknowledgeAndAnswer question = do
   _ <- say "Thinking...  "
-  liftIO $ OllamaApi.answerQuestion question
+  liftIO $ OllamaApi.answerQuestion $ head question
+  return ()
 
 regexResponses :: M.Map Regex ListenerAction
 regexResponses =
@@ -67,7 +68,7 @@ regexResponses =
       ([re|computer set a reminder for (.*) minutes|], setReminder),
       ([re|email the note|], const sendEmailNote),
       ([re|i love you computer|], \x -> speak "I love you too!"),
-      ([re|(?:okay|ok)[\,]? genius (.*)|], acknowledgeAndAnswer . head)
+      ([re|(?:okay|ok)[\,]? genius (.*)|], \x -> acknowledgeAndAnswer x >> speak "Does that help?")
     ]
 
 dispatchRegex :: M.Map Regex ([String] -> ListenerMonad String) -> String -> Maybe (ListenerMonad String)
