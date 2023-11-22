@@ -9,8 +9,7 @@ module OllamaResponseChunker (chunker2, chunker) where
 import Conduit
 import Control.Monad (unless, when)
 import Data.Aeson (FromJSON, ToJSON, Value (Number, Object, String), decode, fromJSON, parseJSON)
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Lazy as BSL
+import qualified Data.ByteString.Lazy as B
 import Data.Char
 import qualified Data.Conduit.Binary as CB
 import Data.Maybe
@@ -28,24 +27,21 @@ data OllamaResponse = OllamaResponse
 
 instance FromJSON OllamaResponse
 
-packStr :: String -> B.ByteString
-packStr = encodeUtf8 . T.pack
+testString :: B.ByteString
+testString = B.fromStrict "{\"model\":\"model\",\"created_at\":\"created_at\",\"response\":\"response1\"}{\"model\":\"model\",\"created_at\":\"created_at\",\"response\":\".\"}{\"model\":\"model\",\"created_at\":\"created_at\",\"response\":\"response2\"}"
 
-testString :: BSL.ByteString
-testString = BSL.fromStrict $ packStr "{\"model\":\"model\",\"created_at\":\"created_at\",\"response\":\"response1\"}{\"model\":\"model\",\"created_at\":\"created_at\",\"response\":\".\"}{\"model\":\"model\",\"created_at\":\"created_at\",\"response\":\"response2\"}"
-
-makeResponseChunk :: BSL.ByteString -> Maybe OllamaResponse
+makeResponseChunk :: B.ByteString -> Maybe OllamaResponse
 makeResponseChunk = decode
 
-jsonChunks :: Monad m => Char -> ConduitT BSL.ByteString BSL.ByteString m ()
+jsonChunks :: Monad m => Char -> ConduitT B.ByteString B.ByteString m ()
 jsonChunks trigger = do
   let triggerByte = fromIntegral (fromEnum trigger)
   awaitForever $ \bs -> do
-    let (prefix, suffix) = BSL.break (== triggerByte) bs
-    unless (BSL.null prefix) $ yield $ prefix <> "}"
-    unless (BSL.null suffix) $ do
-      let rest = BSL.drop 1 suffix
-      unless (BSL.null rest) $ leftover rest
+    let (prefix, suffix) = B.break (== triggerByte) bs
+    unless (B.null prefix) $ yield $ prefix <> "}"
+    unless (B.null suffix) $ do
+      let rest = B.drop 1 suffix
+      unless (B.null rest) $ leftover rest
 
 isPunct :: Char -> Bool
 isPunct c =
@@ -55,13 +51,14 @@ isPunct c =
 word8ToChar :: Word8 -> Char
 word8ToChar = toEnum . fromEnum
 
-sentenceChunks :: Monad m => ConduitT BSL.ByteString BSL.ByteString m ()
+sentenceChunks :: Monad m => ConduitT B.ByteString B.ByteString m ()
 sentenceChunks = do
   awaitForever $ \bs -> do
-    let (prefix, suffix) = BSL.break (isPunct . word8ToChar) bs
-    unless (BSL.null prefix) $ yield prefix
-    unless (BSL.null suffix) $ leftover suffix
+    let (prefix, suffix) = B.break (isPunct . word8ToChar) bs
+    unless (B.null prefix) $ yield prefix
+    unless (B.null suffix) $ leftover suffix
 
+chunker2 :: ConduitT () B.ByteString (ResourceT IO) () -> IO ()
 chunker2 src =
   runConduitRes $
     src

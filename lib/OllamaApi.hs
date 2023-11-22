@@ -1,3 +1,4 @@
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -6,41 +7,31 @@
 
 module OllamaApi (answerQuestion) where
 
+-- import Network.HTTP.Client (BodyReader, Response)
+-- import qualified Network.HTTP.Client.MultipartFormData as LM
+
+import Conduit (runConduit, (.|))
 import Control.Exception (throwIO)
 import Control.Monad.IO.Class (MonadIO (..))
-import Control.Monad.Trans.Resource (ResourceT)
-import Data.Aeson (FromJSON, ToJSON, Value (Number, Object, String), fromJSON, parseJSON)
+import Control.Monad.Trans.Resource (ResourceT, runResourceT)
+import Data.Aeson (FromJSON, ToJSON, Value (Number, Object, String), encode, fromJSON, parseJSON)
 import qualified Data.Aeson.KeyMap as AKM
-import Data.Conduit (ConduitM, runConduitRes, (.|), (=$=))
-import qualified Data.Conduit.Binary as CB
-import Data.Scientific (toRealFloat)
-import Data.Text (Text, unpack)
+import Data.ByteString
+import Data.Conduit.Binary (sinkFile, sinkHandle, sinkLbs)
+import Data.Conduit.List
 import GHC.Generics (Generic)
-import Network.HTTP.Client (BodyReader, Response)
-import qualified Network.HTTP.Client.MultipartFormData as LM
-import Network.HTTP.Req
-  ( JsonResponse,
-    MonadHttp,
-    POST (POST),
-    ReqBodyJson (ReqBodyJson),
-    defaultHttpConfig,
-    handleHttpException,
+import Network.HTTP.Conduit
+  ( Request (method, port, requestBody, requestHeaders, secure),
+    RequestBody (RequestBodyBS, RequestBodyLBS),
+    Response (responseBody),
     http,
-    jsonResponse,
-    port,
-    req,
-    req',
-    reqBodyMultipart,
-    reqBr,
-    responseBody,
-    runReq,
-    (/:),
+    httpLbs,
+    newManager,
+    parseRequest,
+    tlsManagerSettings,
   )
-import Network.HTTP.Req.Conduit
+import Network.HTTP.Types
 import OllamaResponseChunker (chunker, chunker2)
-
-instance MonadHttp (ConduitM i o (ResourceT IO)) where
-  handleHttpException = liftIO . throwIO
 
 data OllamaRequest = OllamaRequest
   { model :: String,
@@ -68,40 +59,16 @@ instance ToJSON OllamaRequest
 
 instance FromJSON OllamaResponse
 
-getAnswer :: JsonResponse OllamaResponse -> String
-getAnswer jr =
-  let sr = responseBody jr
-   in response sr
-
-answerQuestion :: String -> IO String
-answerQuestion question = runReq defaultHttpConfig $ do
-  let payload = OllamaRequest {model = "llama2", prompt = "In one sentence: " ++ question, stream = False}
-  let reqBody = ReqBodyJson payload
-  let url = "127.0.0.1"
-  let apiPort = 11434
-
-  _ <- liftIO $ putStrLn question
-  r <-
-    req
-      POST
-      (http url /: "api" /: "generate")
-      reqBody
-      jsonResponse
-      $ port apiPort
-  return $
-    getAnswer r
-
-answerQuestion2 question = runConduitRes $ do
+answerQuestion :: String -> IO ByteString
+answerQuestion question =
   let payload = OllamaRequest {model = "llama2", prompt = question, stream = False}
-  let reqBody = ReqBodyJson payload
-  let url = "127.0.0.1"
-  let apiPort = 11434
-  reqBr
-    POST
-    (http url /: "api" /: "generate")
-    reqBody
-    lbsResponse
-    ( \(r :: Response BodyReader) -> do
-        chunker2 $ responseBodySource r
-        -- runConduitRes $ responseBodySource r .| CB.sinkFile "my-file.bin"
-    )
+      url = "http://127.0.0.1/api/generate"
+      apiPort = 11434
+      body = RequestBodyLBS $ encode payload
+   in do
+        request' <- parseRequest url
+        let request = request' {method = "POST", requestBody = body, port = apiPort}
+        manager <- newManager tlsManagerSettings
+        runResourceT $ do
+          response <- http request manager
+          runConduit $ responseBody response .| sinkLbs
