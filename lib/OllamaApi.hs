@@ -7,13 +7,13 @@
 
 module OllamaApi (answerQuestion) where
 
-import Conduit (ConduitM, ConduitT, awaitForever, filterC, leftover, mapC, mapM_C, runConduit, runConduitRes, sinkLazy, sourceLazy, yield, (.|))
+import Conduit (ConduitM, ConduitT, MonadResource, awaitForever, filterC, leftover, mapC, mapM_C, runConduit, runConduitRes, sinkLazy, sourceLazy, yield, (.|))
 import Control.Concurrent.STM (STM, TQueue, atomically, readTVar, writeTQueue, writeTVar)
 import Control.Exception (throwIO)
 import Control.Monad (liftM, unless, when)
 import Control.Monad.IO.Class (MonadIO (..))
 import qualified Control.Monad.RWS as BLS
-import Control.Monad.Trans.Resource (ResourceT, runResourceT)
+import Control.Monad.Trans.Resource (ResourceT, liftResourceT, runResourceT)
 import Data.Aeson (FromJSON, ToJSON, Value (Number, Object, String), decode, encode, fromJSON, json, parseJSON)
 import qualified Data.Aeson.KeyMap as AKM
 import qualified Data.ByteString as B
@@ -104,11 +104,8 @@ sentenceChunks = do
 makeResponseChunk :: B.ByteString -> Maybe OllamaResponse
 makeResponseChunk = decode . BLS.fromStrict
 
--- writeToMailBox :: TQueue String -> String -> IO ()
--- writeToMailBox mailbox = atomically . writeTQueue mailbox
-
-writeToMailBox :: TQueue String -> String -> IO ()
-writeToMailBox mbox = atomically . writeTQueue mbox
+writeToMailBox :: MonadResource m => TQueue a -> a -> m ()
+writeToMailBox mbox msg = liftResourceT $ liftIO $ atomically $ writeTQueue mbox msg
 
 answerQuestion :: TQueue String -> String -> IO ()
 answerQuestion mailbox question =
@@ -120,7 +117,6 @@ answerQuestion mailbox question =
         request' <- parseRequest url
         let request'' = request' {method = "POST", requestBody = body, port = apiPort}
             request = setRequestResponseTimeout (responseTimeoutMicro (500 * 1000000)) request''
-            mboxwriter = writeToMailBox mailbox
         manager <- newManager tlsManagerSettings
         runResourceT $ do
           response <- http request manager
@@ -134,4 +130,4 @@ answerQuestion mailbox question =
               .| mapC stringToByteString
               .| sentenceChunks
               .| mapC byteStringToString
-              .| mapM_C (mboxwriter)
+              .| mapM_C (writeToMailBox mailbox)

@@ -8,7 +8,6 @@
 module Actions where
 
 import ConfigParser (EnvConfig (mailPassword, mailUser))
-import Control.Concurrent.MVar (MVar, tryTakeMVar)
 import Control.Concurrent.STM (STM, TQueue, atomically, readTVar, writeTVar)
 import Control.Monad.Reader (MonadReader, ReaderT, ask, liftIO, runReaderT)
 import Control.Monad.ST (RealWorld)
@@ -56,7 +55,7 @@ acknowledgeAndAnswer mailbox question = do
   liftIO $ OllamaApi.answerQuestion mailbox (head question)
   return ()
 
-regexResponses :: MVar String -> M.Map Regex ListenerAction
+regexResponses :: TQueue String -> M.Map Regex ListenerAction
 regexResponses mailbox =
   M.fromList
     [ ([re|computer my name is (.*)|], speak . greet),
@@ -89,5 +88,4 @@ dispatchRegex responses query =
 findResponseRegex :: String -> ListenerMonad (Maybe String)
 findResponseRegex query = do
   state <- get
-
   sequence $ dispatchRegex (regexResponses (mailbox state)) query
