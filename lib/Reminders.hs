@@ -31,7 +31,8 @@ setReminder' seconds = do
   say "what's the reminder?"
   reminder <- listenPatiently
   let box = mailbox listener
-  liftIO $ sendReminder seconds reminder box
+      reminder' = "Reminder: " ++ reminder
+  liftIO $ sendReminder seconds reminder' box
 
 setReminder :: [String] -> ListenerMonad String
 setReminder s = do

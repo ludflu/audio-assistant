@@ -144,7 +144,7 @@ getListenerState = do
   listener <- get
   wasRecordingReset <- liftIO $ tryTakeMVar $ audioReset listener
   mail <- liftIO $ tryTakeMVar $ mailbox listener
-  when (isJust mail) (mapM_ (\x -> say "reminder!" >> say x) mail)
+  when (isJust mail) (mapM_ say mail)
   resetOffset wasRecordingReset
   get
 

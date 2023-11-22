@@ -8,14 +8,16 @@
 module OllamaApi (answerQuestion) where
 
 import Conduit (ConduitM, ConduitT, awaitForever, filterC, leftover, mapC, mapM_C, runConduit, runConduitRes, sinkLazy, sourceLazy, yield, (.|))
+import Control.Concurrent (MVar, putMVar)
 import Control.Exception (throwIO)
-import Control.Monad (unless, when)
+import Control.Monad (liftM, unless, when)
 import Control.Monad.IO.Class (MonadIO (..))
 import qualified Control.Monad.RWS as BLS
 import Control.Monad.Trans.Resource (ResourceT, runResourceT)
 import Data.Aeson (FromJSON, ToJSON, Value (Number, Object, String), decode, encode, fromJSON, json, parseJSON)
 import qualified Data.Aeson.KeyMap as AKM
 import qualified Data.ByteString as B
+import Data.ByteString.Builder (byteString)
 import Data.ByteString.Char8 (unpack)
 import qualified Data.ByteString.Lazy as BLS
 import Data.Conduit.Binary (sinkFile, sinkHandle, sinkLbs, sourceLbs)
@@ -24,6 +26,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import Data.Word (Word8)
 import GHC.Generics (Generic)
+import Listener
 import Network.HTTP.Conduit
   ( Request (method, port, requestBody, requestHeaders, responseTimeout, secure),
     RequestBody (RequestBodyBS, RequestBodyLBS),
@@ -88,6 +91,9 @@ word8ToChar = toEnum . fromEnum
 stringToByteString :: String -> B.ByteString
 stringToByteString = TE.encodeUtf8 . T.pack
 
+byteStringToString :: B.ByteString -> String
+byteStringToString = unpack
+
 sentenceChunks :: Monad m => ConduitM B.ByteString B.ByteString m ()
 sentenceChunks = do
   awaitForever $ \bs -> do
@@ -98,8 +104,8 @@ sentenceChunks = do
 makeResponseChunk :: B.ByteString -> Maybe OllamaResponse
 makeResponseChunk = decode . BLS.fromStrict
 
--- answerQuestion :: String -> IO ()
-answerQuestion question =
+answerQuestion :: MVar String -> String -> IO ()
+answerQuestion mailbox question =
   let payload = OllamaRequest {model = "llama2", prompt = question, stream = False}
       url = "http://127.0.0.1/api/generate"
       apiPort = 11434
@@ -120,4 +126,5 @@ answerQuestion question =
               .| mapC getAnswer
               .| mapC stringToByteString
               .| sentenceChunks
-              .| mapM_C (liftIO . putStrLn . ("Processing chunk: " ++) . show)
+              .| mapC byteStringToString
+              .| mapM_C (liftIO . putMVar mailbox) -- TODO put the msg in the mailbox becaue we can't directly speak it because we're not in the ListenerMonad

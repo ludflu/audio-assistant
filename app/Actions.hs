@@ -8,6 +8,7 @@
 module Actions where
 
 import ConfigParser (EnvConfig (mailPassword, mailUser))
+import Control.Concurrent.MVar (MVar, tryTakeMVar)
 import Control.Monad.Reader (MonadReader, ReaderT, ask, liftIO, runReaderT)
 import Control.Monad.ST (RealWorld)
 import Control.Monad.State
@@ -32,7 +33,7 @@ import Data.Time.LocalTime.TimeZone.Olson ()
 import Data.Time.LocalTime.TimeZone.Series
 import Data.Traversable
 import Guess (guessingGame)
-import Listener (ListenerMonad, quitNow, say, speak)
+import Listener (ListenerMonad, ListenerState (mailbox), quitNow, say, speak)
 import MatchHelper (dropNonLetters, fuzzyMatch, isMatch, lowerCase)
 import OllamaApi (answerQuestion)
 import RecordNote (readNote, recordNote)
@@ -48,14 +49,14 @@ type ListenerAction = [String] -> ListenerMonad String
 greet :: [String] -> String
 greet params = "Hello " ++ head params ++ " its nice to meet you"
 
-acknowledgeAndAnswer :: [String] -> ListenerMonad ()
-acknowledgeAndAnswer question = do
+acknowledgeAndAnswer :: MVar String -> [String] -> ListenerMonad ()
+acknowledgeAndAnswer mailbox question = do
   _ <- say "Thinking...  "
-  liftIO $ OllamaApi.answerQuestion $ head question
+  liftIO $ OllamaApi.answerQuestion mailbox (head question)
   return ()
 
-regexResponses :: M.Map Regex ListenerAction
-regexResponses =
+regexResponses :: MVar String -> M.Map Regex ListenerAction
+regexResponses mailbox =
   M.fromList
     [ ([re|computer my name is (.*)|], speak . greet),
       ([re|computer what time is it|], const currentTime),
@@ -68,7 +69,7 @@ regexResponses =
       ([re|computer set a reminder for (.*) minutes|], setReminder),
       ([re|email the note|], const sendEmailNote),
       ([re|i love you computer|], \x -> speak "I love you too!"),
-      ([re|(?:okay|ok)[\,]? genius (.*)|], \x -> acknowledgeAndAnswer x >> speak "Does that help?")
+      ([re|(?:okay|ok)[\,]? genius (.*)|], \x -> acknowledgeAndAnswer mailbox x >> speak "Does that help?")
     ]
 
 dispatchRegex :: M.Map Regex ([String] -> ListenerMonad String) -> String -> Maybe (ListenerMonad String)
@@ -85,4 +86,7 @@ dispatchRegex responses query =
    in maybeFunc
 
 findResponseRegex :: String -> ListenerMonad (Maybe String)
-findResponseRegex query = sequence $ dispatchRegex regexResponses query
+findResponseRegex query = do
+  state <- get
+
+  sequence $ dispatchRegex (regexResponses (mailbox state)) query
