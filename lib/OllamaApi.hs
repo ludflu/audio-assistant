@@ -14,11 +14,13 @@ import Conduit (runConduit, (.|))
 import Control.Exception (throwIO)
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Trans.Resource (ResourceT, runResourceT)
-import Data.Aeson (FromJSON, ToJSON, Value (Number, Object, String), encode, fromJSON, parseJSON)
+import Data.Aeson (FromJSON, ToJSON, Value (Number, Object, String), decode, encode, fromJSON, parseJSON)
 import qualified Data.Aeson.KeyMap as AKM
 import Data.ByteString (ByteString, toStrict)
+import Data.ByteString.Char8 (unpack)
+import qualified Data.ByteString.Lazy as BLS
 import Data.Conduit.Binary (sinkFile, sinkHandle, sinkLbs)
-import Data.Conduit.List
+import Data.Maybe (fromJust, mapMaybe)
 import GHC.Generics (Generic)
 import Network.HTTP.Conduit
   ( Request (method, port, requestBody, requestHeaders, secure),
@@ -59,7 +61,12 @@ instance ToJSON OllamaRequest
 
 instance FromJSON OllamaResponse
 
-answerQuestion :: String -> IO ByteString
+getAnswer :: BLS.ByteString -> Maybe String
+getAnswer llamaRsp =
+  let rsp = decode llamaRsp
+   in fmap response rsp
+
+answerQuestion :: String -> IO String
 answerQuestion question =
   let payload = OllamaRequest {model = "llama2", prompt = question, stream = False}
       url = "http://127.0.0.1/api/generate"
@@ -72,4 +79,5 @@ answerQuestion question =
         runResourceT $ do
           response <- http request manager
           rlbs <- runConduit $ responseBody response .| sinkLbs
-          return $ toStrict rlbs
+          let llamaRsp = getAnswer rlbs
+          return $ fromJust llamaRsp
