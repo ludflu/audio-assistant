@@ -16,7 +16,7 @@ import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Trans.Resource (ResourceT, runResourceT)
 import Data.Aeson (FromJSON, ToJSON, Value (Number, Object, String), encode, fromJSON, parseJSON)
 import qualified Data.Aeson.KeyMap as AKM
-import Data.ByteString
+import Data.ByteString (ByteString, toStrict)
 import Data.Conduit.Binary (sinkFile, sinkHandle, sinkLbs)
 import Data.Conduit.List
 import GHC.Generics (Generic)
@@ -71,4 +71,5 @@ answerQuestion question =
         manager <- newManager tlsManagerSettings
         runResourceT $ do
           response <- http request manager
-          runConduit $ responseBody response .| sinkLbs
+          rlbs <- runConduit $ responseBody response .| sinkLbs
+          return $ toStrict rlbs
