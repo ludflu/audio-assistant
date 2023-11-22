@@ -112,13 +112,13 @@ writeToMailBox mbox msg =
       atomically $
         writeTQueue mbox msg
 
-answerQuestion' :: TQueue String -> String -> IO ()
-answerQuestion' mailbox question = do
+answerQuestion :: TQueue String -> String -> IO ()
+answerQuestion mailbox question = do
   forkIO $ answerQuestion mailbox question
   return ()
 
-answerQuestion :: TQueue String -> String -> IO ()
-answerQuestion mailbox question =
+answerQuestion' :: TQueue String -> String -> IO ()
+answerQuestion' mailbox question =
   let payload = OllamaRequest {model = "llama2", prompt = question, stream = False}
       url = "http://127.0.0.1/api/generate"
       apiPort = 11434
