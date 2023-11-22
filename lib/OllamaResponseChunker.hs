@@ -58,16 +58,20 @@ sentenceChunks = do
     unless (B.null prefix) $ yield prefix
     unless (B.null suffix) $ leftover suffix
 
-chunker2 :: ConduitT () B.ByteString (ResourceT IO) () -> IO ()
+-- chain :: Monad m => ConduitT B.ByteString B.ByteString m ()
+-- chain =
+--   jsonChunks '}' $ mapC makeResponseChunk
+
+-- chunker2 :: ConduitT () B.ByteString (ResourceT IO) () -> IO ()
+chunker2 :: MonadIO m => ConduitT a B.ByteString m () -> ConduitT a c m ()
 chunker2 src =
-  runConduitRes $
-    src
-      .| jsonChunks '}'
-      .| mapC makeResponseChunk
-      .| filterC isJust
-      .| mapC fromJust
-      .| mapC response
-      .| mapM_C (liftIO . putStrLn . ("Processing chunk: " ++) . show)
+  src
+    .| jsonChunks '}'
+    .| mapC makeResponseChunk
+    .| filterC isJust
+    .| mapC fromJust
+    .| mapC response
+    .| mapM_C (liftIO . putStrLn . ("Processing chunk: " ++) . show)
 
 chunker :: IO ()
 chunker =
