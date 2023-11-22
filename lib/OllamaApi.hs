@@ -23,15 +23,17 @@ import Data.Conduit.Binary (sinkFile, sinkHandle, sinkLbs)
 import Data.Maybe (fromJust, mapMaybe)
 import GHC.Generics (Generic)
 import Network.HTTP.Conduit
-  ( Request (method, port, requestBody, requestHeaders, secure),
+  ( Request (method, port, requestBody, requestHeaders, responseTimeout, secure),
     RequestBody (RequestBodyBS, RequestBodyLBS),
     Response (responseBody),
     http,
     httpLbs,
     newManager,
     parseRequest,
+    responseTimeoutMicro,
     tlsManagerSettings,
   )
+import Network.HTTP.Simple (setRequestResponseTimeout)
 import Network.HTTP.Types
 import OllamaResponseChunker (chunker, chunker2)
 
@@ -74,7 +76,8 @@ answerQuestion question =
       body = RequestBodyLBS $ encode payload
    in do
         request' <- parseRequest url
-        let request = request' {method = "POST", requestBody = body, port = apiPort}
+        let request'' = request' {method = "POST", requestBody = body, port = apiPort}
+            request = setRequestResponseTimeout (responseTimeoutMicro (500 * 1000000)) request''
         manager <- newManager tlsManagerSettings
         runResourceT $ do
           response <- http request manager
