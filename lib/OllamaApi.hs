@@ -109,11 +109,16 @@ writeToMailBox' :: MonadResource m => TQueue String -> String -> m ()
 writeToMailBox' mbox msg =
   liftResourceT $
     liftIO $ do
+      print "answer:\n"
       print msg
+      print "\n"
       atomically $ writeTQueue mbox msg
 
 answerQuestion :: TQueue String -> String -> IO ()
 answerQuestion mailbox question = do
+  print "sending to api:\n"
+  print question
+  print "\n"
   forkIO $ answerQuestion mailbox question
   return ()
 
