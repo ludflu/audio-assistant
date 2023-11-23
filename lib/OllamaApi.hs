@@ -170,8 +170,7 @@ answerQuestion' mailbox question =
               .| jsonChunks '}'
               .| mapC makeResponseChunk
               .| filterC isJust
-              .| mapC (getAnswer . fromJust)
-              .| mapC stringToByteString
+              .| mapC (stringToByteString . getAnswer . fromJust)
               .| sentenceChunks
               .| mapC byteStringToString
               .| mapM_C (writeToMailBox' mailbox)
