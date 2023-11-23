@@ -125,7 +125,7 @@ answerQuestion mailbox question = do
 answerQuestion' :: TQueue String -> String -> IO ()
 answerQuestion' mailbox question =
   let payload = OllamaRequest {model = "llama2", prompt = question, stream = False}
-      url = "http://127.0.0.1/api/generate"
+      url = "http://192.168.1.200/api/generate"
       apiPort = 11434
       body = RequestBodyLBS $ encode payload
    in do
