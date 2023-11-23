@@ -22,7 +22,7 @@ import Data.ByteString.Builder (byteString)
 import Data.ByteString.Char8 (unpack)
 import qualified Data.ByteString.Lazy as BLS
 import Data.Conduit.Binary (sinkFile, sinkHandle, sinkLbs, sourceLbs)
-import Data.Conduit.Combinators (concatMapE)
+import Data.Conduit.Combinators (concatMapE, concatMapM)
 import Data.Maybe (fromJust, isJust, mapMaybe)
 import qualified Data.Text as T
 import Data.Text.Array (run)
@@ -146,7 +146,7 @@ chunker rsp postman =
       .| mapC byteStringToString
       .| mapM_C postman
 
-concatBytes :: B.ByteString -> B.ByteString -> (B.ByteString, B.ByteString)
+concatBytes :: B.ByteString -> B.ByteString -> (B.ByteString, [B.ByteString])
 concatBytes acc chunk = (acc <> chunk, mempty)
 
 concatString :: String -> String -> (String, String)
@@ -171,6 +171,7 @@ answerQuestion' mailbox question =
               .| mapC makeResponseChunk
               .| filterC isJust
               .| mapC (stringToByteString . getAnswer . fromJust)
+              .| concatMapAccumC concatBytes B.empty
               .| sentenceChunks
               .| mapC byteStringToString
               .| mapM_C (writeToMailBox' mailbox)
