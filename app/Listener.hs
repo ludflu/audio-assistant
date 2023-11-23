@@ -9,7 +9,7 @@ module Listener where
 import ConfigParser (EnvConfig (recordingLength), activationThreshold, audioRate, debug, localpath, segmentDuration, sleepSeconds, wavpath)
 import Control.Concurrent (threadDelay)
 import Control.Concurrent.MVar (MVar, tryTakeMVar)
-import Control.Concurrent.STM (STM, TQueue, atomically, readTQueue, tryReadTQueue)
+import Control.Concurrent.STM (STM, TQueue, atomically, readTQueue, tryReadTQueue, writeTQueue)
 import Control.Monad (when)
 import Control.Monad.Except (ExceptT)
 import Control.Monad.IO.Class (MonadIO (..))
@@ -240,6 +240,13 @@ quitNow = do
 shouldQuit :: ListenerMonad Bool
 shouldQuit =
   gets quit
+
+writeToMailBox :: String -> ListenerMonad ()
+writeToMailBox msg =
+  do
+    s <- get
+    liftIO $ print msg
+    liftIO $ atomically $ writeTQueue (mailbox s) msg
 
 say :: String -> ListenerMonad Double
 say msg =

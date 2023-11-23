@@ -19,7 +19,7 @@ import Data.Time.LocalTime
   )
 import Data.Time.LocalTime.TimeZone.Olson ()
 import Data.Time.LocalTime.TimeZone.Series
-import Listener (ListenerMonad, speak)
+import Listener (ListenerMonad, speak, writeToMailBox)
 
 getLocalTime = do
   time <- getCurrentTime
@@ -48,20 +48,20 @@ getMonthString month =
   let mstr = M.lookup month monthMap
    in fromMaybe "" mstr
 
-currentDay :: ListenerMonad String
+currentDay :: ListenerMonad ()
 currentDay = do
   localTime <- liftIO getLocalTime
   let LocalTime day (TimeOfDay hh mm ss) = localTime
       (yr, mn, dom) = toGregorian day
       (_, wk, dow) = toWeekDate day
       formatDay :: String = getMonthString mn ++ " " ++ show dom ++ ", " ++ show yr
-  speak $ "Today is " ++ formatDay
+  writeToMailBox $ "Today is " ++ formatDay
 
-currentTime :: ListenerMonad String
+currentTime :: ListenerMonad ()
 currentTime = do
   localTime <- liftIO getLocalTime
   let timeOfDay = localTimeOfDay localTime
       hour = show $ todHour timeOfDay `mod` 12
       minutes = show $ todMin timeOfDay
       theTime = hour ++ ":" ++ minutes
-  speak $ "The time is " ++ theTime
+  writeToMailBox $ "The time is " ++ theTime

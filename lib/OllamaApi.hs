@@ -105,8 +105,8 @@ sentenceChunks = do
 makeResponseChunk :: B.ByteString -> Maybe OllamaResponse
 makeResponseChunk = decode . BLS.fromStrict
 
-writeToMailBox :: MonadResource m => TQueue String -> String -> m ()
-writeToMailBox mbox msg =
+writeToMailBox' :: MonadResource m => TQueue String -> String -> m ()
+writeToMailBox' mbox msg =
   liftResourceT $
     liftIO $ do
       print msg
@@ -140,4 +140,4 @@ answerQuestion' mailbox question =
               .| mapC stringToByteString
               .| sentenceChunks
               .| mapC byteStringToString
-              .| mapM_C (writeToMailBox mailbox)
+              .| mapM_C (writeToMailBox' mailbox)

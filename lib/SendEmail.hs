@@ -21,7 +21,7 @@ import Network.Mail.Mime
     renderMail',
     simpleMail',
   )
-import RecordNote (readNote)
+import RecordNote (getNote, readNote)
 
 sendGmail :: Mail -> String -> String -> IO ()
 sendGmail msg username password = do
@@ -48,12 +48,12 @@ email msgTo msgBody username password = do
     subject = "Hello!"
     body = msgBody
 
-sendEmailNote :: ListenerMonad String
+sendEmailNote :: ListenerMonad ()
 sendEmailNote = do
-  note <- readNote
+  note <- liftIO getNote
   config <- ask
   let user = mailUser config
   let password = mailPassword config
   let msg = pack note
   _ <- liftIO $ email (pack user) msg user password
-  return note
+  return ()

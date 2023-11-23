@@ -12,7 +12,7 @@ import Control.Monad.State
     lift,
     liftIO,
   )
-import Listener (ListenerMonad, ListenerState (mailbox), listenPatiently, say)
+import Listener (ListenerMonad, ListenerState (mailbox), listenPatiently, say, writeToMailBox)
 import MatchHelper (readInt)
 
 sendReminder' :: Integer -> String -> TQueue String -> IO ()
@@ -29,17 +29,17 @@ sendReminder seconds reminder mailbox = do
 setReminder' :: Integer -> ListenerMonad ()
 setReminder' seconds = do
   listener <- get
-  say "what's the reminder?"
+  writeToMailBox "what's the reminder?"
   reminder <- listenPatiently
   let box = mailbox listener
       reminder' = "Reminder: " ++ reminder
   liftIO $ sendReminder seconds reminder' box
 
-setReminder :: [String] -> ListenerMonad String
+setReminder :: [String] -> ListenerMonad ()
 setReminder s = do
   liftIO $ print "setting reminder:---------"
   liftIO $ print s
   let seconds = readInt $ last s
    in case seconds of
-        Just secs -> setReminder' secs >> return "reminder set."
-        Nothing -> return "Invalid time"
+        Just secs -> setReminder' secs >> writeToMailBox "reminder set."
+        Nothing -> writeToMailBox "Invalid time"
