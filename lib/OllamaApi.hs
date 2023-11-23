@@ -132,25 +132,11 @@ answerQuestion mailbox question = do
   forkIO $ answerQuestion' mailbox question
   return ()
 
-chunker :: ConduitM () B.ByteString IO () -> (String -> IO ()) -> IO ()
-chunker rsp postman =
-  runConduit $
-    rsp
-      .| jsonChunks '}'
-      .| mapC makeResponseChunk
-      .| filterC isJust
-      .| mapC fromJust
-      .| mapC getAnswer
-      .| mapC stringToByteString
-      .| sentenceChunks
-      .| mapC byteStringToString
-      .| mapM_C postman
-
 concatBytes :: B.ByteString -> B.ByteString -> (B.ByteString, [B.ByteString])
 concatBytes acc chunk = (acc <> chunk, mempty)
 
 concatString :: String -> String -> (String, String)
-concatString acc chunk = (acc <> chunk, mempty)
+concatString chunk acc = (acc <> chunk, mempty)
 
 answerQuestion' :: TQueue String -> String -> IO ()
 answerQuestion' mailbox question =
