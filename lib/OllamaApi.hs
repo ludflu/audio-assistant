@@ -133,7 +133,7 @@ answerQuestion mailbox question = do
   return ()
 
 concatBytes :: B.ByteString -> B.ByteString -> (B.ByteString, [B.ByteString])
-concatBytes acc chunk = (B.empty, [acc <> chunk])
+concatBytes acc chunk = (acc <> chunk, [acc <> chunk])
 
 answerQuestion' :: TQueue String -> String -> IO ()
 answerQuestion' mailbox question =
