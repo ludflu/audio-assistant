@@ -133,10 +133,10 @@ answerQuestion mailbox question = do
   return ()
 
 concatBytes :: B.ByteString -> B.ByteString -> (B.ByteString, [B.ByteString])
-concatBytes acc chunk = (acc <> chunk, mempty)
+concatBytes acc chunk = (acc <> chunk, [acc <> chunk])
 
 concatString :: String -> String -> (String, String)
-concatString chunk acc = (acc <> chunk, mempty)
+concatString chunk acc = (acc <> chunk, acc <> chunk)
 
 answerQuestion' :: TQueue String -> String -> IO ()
 answerQuestion' mailbox question =
@@ -158,6 +158,7 @@ answerQuestion' mailbox question =
               .| filterC isJust
               .| mapC (stringToByteString . getAnswer . fromJust)
               .| concatMapAccumC concatBytes B.empty
+              -- .| concatMapC (stringToByteString . getAnswer . fromJust)
               .| sentenceChunks
               .| mapC byteStringToString
               .| mapM_C (writeToMailBox' mailbox)
