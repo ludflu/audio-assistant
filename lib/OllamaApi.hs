@@ -119,7 +119,7 @@ answerQuestion mailbox question = do
   print "sending to api:\n"
   print question
   print "\n"
-  forkIO $ answerQuestion mailbox question
+  forkIO $ answerQuestion' mailbox question
   return ()
 
 answerQuestion' :: TQueue String -> String -> IO ()
