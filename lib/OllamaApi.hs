@@ -22,7 +22,7 @@ import Data.ByteString.Builder (byteString)
 import Data.ByteString.Char8 (unpack)
 import qualified Data.ByteString.Lazy as BLS
 import Data.Conduit.Binary (sinkFile, sinkHandle, sinkLbs, sourceLbs)
-import Data.Conduit.Combinators (concatMapE, concatMapM)
+import Data.Conduit.Combinators (concatMapE, concatMapM, mapE)
 import Data.Maybe (fromJust, isJust, mapMaybe)
 import qualified Data.Text as T
 import Data.Text.Array (run)
@@ -105,12 +105,12 @@ stringToByteString = TE.encodeUtf8 . T.pack
 byteStringToString :: B.ByteString -> String
 byteStringToString = unpack
 
-sentenceChunks :: Monad m => ConduitM B.ByteString B.ByteString m ()
+sentenceChunks :: Monad m => ConduitM String String m ()
 sentenceChunks = do
   awaitForever $ \bs -> do
-    let (prefix, suffix) = B.break (isPunct . word8ToChar) bs
-    unless (B.null prefix) $ yield prefix
-    unless (B.null suffix) $ leftover suffix
+    let (prefix, suffix) = break isPunct bs
+    unless (null prefix) $ yield prefix
+    unless (null suffix) $ leftover suffix
 
 makeResponseChunk :: B.ByteString -> Maybe OllamaResponse
 makeResponseChunk = decode . BLS.fromStrict
@@ -132,8 +132,14 @@ answerQuestion mailbox question = do
   forkIO $ answerQuestion' mailbox question
   return ()
 
-concatBytes :: B.ByteString -> B.ByteString -> (B.ByteString, [B.ByteString])
-concatBytes acc chunk = (acc <> chunk, [acc <> chunk])
+concatBytes :: B.ByteString -> B.ByteString -> (B.ByteString, B.ByteString)
+concatBytes acc chunk = (acc <> chunk, B.empty)
+
+concatString :: String -> String -> (String, String)
+concatString acc chunk = (acc <> chunk, [])
+
+stringCombine :: [String] -> String
+stringCombine = foldr (\x acc -> x <> acc) []
 
 answerQuestion' :: TQueue String -> String -> IO ()
 answerQuestion' mailbox question =
@@ -146,16 +152,26 @@ answerQuestion' mailbox question =
         let request'' = request' {method = "POST", requestBody = body, port = apiPort}
             request = setRequestResponseTimeout (responseTimeoutMicro (500 * 1000000)) request''
         manager <- newManager tlsManagerSettings
-        runResourceT $ do
-          rsp <- http request manager
-          runConduit $
-            responseBody rsp
-              .| jsonChunks '}'
-              .| mapC makeResponseChunk
-              .| filterC isJust
-              .| mapC (stringToByteString . getAnswer . fromJust)
-              .| concatMapAccumC concatBytes B.empty
-              -- .| concatMapC (stringToByteString . getAnswer . fromJust)
-              .| sentenceChunks
-              .| mapC byteStringToString
-              .| mapM_C (writeToMailBox' mailbox)
+        runResourceT $
+          do
+            rsp <- http request manager
+
+            runConduit $
+              responseBody rsp
+                .| jsonChunks '}'
+                .| mapC makeResponseChunk
+                .| filterC isJust
+                .| mapC (getAnswer . fromJust)
+                .| sentenceChunks
+                --              .| mapC (:)
+                --                .| mapE stringCombine
+                .| mapM_C (writeToMailBox' mailbox)
+
+--                  .| concatMapC strid
+-- .| concatC
+-- .| concatMapAccumC concatString ""
+
+-- -- .| sinkLbs
+-- .| mapC byteStringToString
+--              .| sentenceChunks
+--              .| mapM_C (writeToMailBox' mailbox)
