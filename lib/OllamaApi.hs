@@ -49,18 +49,26 @@ data OllamaRequest = OllamaRequest
   }
   deriving (Generic)
 
+-- data OllamaResponse = OllamaResponse
+--   { model :: String,
+--     created_at :: String,
+--     response :: String,
+--     done :: Bool,
+--     context :: Maybe [Int],
+--     total_duration :: Maybe Int,
+--     load_duration :: Maybe Int,
+--     prompt_eval_count :: Int,
+--     prompt_eval_duration :: Int,
+--     eval_count :: Int,
+--     eval_duration :: Int
+--   }
+--   deriving (Generic, Show)
+
 data OllamaResponse = OllamaResponse
   { model :: String,
     created_at :: String,
     response :: String,
-    done :: Bool,
-    context :: Maybe [Int],
-    total_duration :: Maybe Int,
-    load_duration :: Maybe Int,
-    prompt_eval_count :: Int,
-    prompt_eval_duration :: Int,
-    eval_count :: Int,
-    eval_duration :: Int
+    done :: Bool
   }
   deriving (Generic, Show)
 
@@ -83,7 +91,7 @@ jsonChunks trigger = do
 
 isPunct :: Char -> Bool
 isPunct c =
-  let ps :: String = "!.?'"
+  let ps :: String = "!.?,"
    in c `elem` ps
 
 word8ToChar :: Word8 -> Char
