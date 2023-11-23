@@ -7,7 +7,7 @@
 
 module OllamaApi (answerQuestion) where
 
-import Conduit (ConduitM, ConduitT, MonadResource, awaitForever, filterC, leftover, mapC, mapM_C, runConduit, runConduitRes, sinkLazy, sourceLazy, yield, (.|))
+import Conduit (ConduitM, ConduitT, MonadResource, awaitForever, concatC, concatMapAccumC, concatMapC, concatMapCE, filterC, leftover, mapC, mapM_C, runConduit, runConduitRes, sinkLazy, sourceLazy, yield, (.|))
 import Control.Concurrent (forkIO)
 import Control.Concurrent.STM (STM, TQueue, atomically, readTVar, writeTQueue, writeTVar)
 import Control.Exception (throwIO)
@@ -22,8 +22,10 @@ import Data.ByteString.Builder (byteString)
 import Data.ByteString.Char8 (unpack)
 import qualified Data.ByteString.Lazy as BLS
 import Data.Conduit.Binary (sinkFile, sinkHandle, sinkLbs, sourceLbs)
+import Data.Conduit.Combinators (concatMapE)
 import Data.Maybe (fromJust, isJust, mapMaybe)
 import qualified Data.Text as T
+import Data.Text.Array (run)
 import qualified Data.Text.Encoding as TE
 import Data.Word (Word8)
 import GHC.Generics (Generic)
@@ -130,6 +132,26 @@ answerQuestion mailbox question = do
   forkIO $ answerQuestion' mailbox question
   return ()
 
+chunker :: ConduitM () B.ByteString IO () -> (String -> IO ()) -> IO ()
+chunker rsp postman =
+  runConduit $
+    rsp
+      .| jsonChunks '}'
+      .| mapC makeResponseChunk
+      .| filterC isJust
+      .| mapC fromJust
+      .| mapC getAnswer
+      .| mapC stringToByteString
+      .| sentenceChunks
+      .| mapC byteStringToString
+      .| mapM_C postman
+
+concatBytes :: B.ByteString -> B.ByteString -> (B.ByteString, B.ByteString)
+concatBytes acc chunk = (acc <> chunk, mempty)
+
+concatString :: String -> String -> (String, String)
+concatString acc chunk = (acc <> chunk, mempty)
+
 answerQuestion' :: TQueue String -> String -> IO ()
 answerQuestion' mailbox question =
   let payload = OllamaRequest {model = "llama2", prompt = question, stream = True}
@@ -142,14 +164,13 @@ answerQuestion' mailbox question =
             request = setRequestResponseTimeout (responseTimeoutMicro (500 * 1000000)) request''
         manager <- newManager tlsManagerSettings
         runResourceT $ do
-          response <- http request manager
+          rsp <- http request manager
           runConduit $
-            responseBody response
+            responseBody rsp
               .| jsonChunks '}'
               .| mapC makeResponseChunk
               .| filterC isJust
-              .| mapC fromJust
-              .| mapC getAnswer
+              .| mapC (getAnswer . fromJust)
               .| mapC stringToByteString
               .| sentenceChunks
               .| mapC byteStringToString
