@@ -4,12 +4,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module OllamaResponseChunker (chunker2, chunker) where
+module OllamaResponseChunker (chunker) where
 
 import Conduit
 import Control.Monad (unless, when)
 import Data.Aeson (FromJSON, ToJSON, Value (Number, Object, String), decode, fromJSON, parseJSON)
 import qualified Data.ByteString.Lazy as B
+import qualified Data.ByteString.Lazy as BLS
+import Data.ByteString.UTF8 as BSU
 import Data.Char
 import qualified Data.Conduit.Binary as CB
 import Data.Maybe
@@ -17,6 +19,7 @@ import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf8)
 import Data.Word
 import GHC.Generics (Generic)
+import OllamaApi
 
 data OllamaResponse = OllamaResponse
   { model :: String,
@@ -27,59 +30,23 @@ data OllamaResponse = OllamaResponse
 
 instance FromJSON OllamaResponse
 
-testString :: B.ByteString
-testString = B.fromStrict "{\"model\":\"model\",\"created_at\":\"created_at\",\"response\":\"response1\"}{\"model\":\"model\",\"created_at\":\"created_at\",\"response\":\".\"}{\"model\":\"model\",\"created_at\":\"created_at\",\"response\":\"response2\"}"
-
-makeResponseChunk :: B.ByteString -> Maybe OllamaResponse
-makeResponseChunk = decode
-
-jsonChunks :: Monad m => Char -> ConduitT B.ByteString B.ByteString m ()
-jsonChunks trigger = do
-  let triggerByte = fromIntegral (fromEnum trigger)
-  awaitForever $ \bs -> do
-    let (prefix, suffix) = B.break (== triggerByte) bs
-    unless (B.null prefix) $ yield $ prefix <> "}"
-    unless (B.null suffix) $ do
-      let rest = B.drop 1 suffix
-      unless (B.null rest) $ leftover rest
-
-isPunct :: Char -> Bool
-isPunct c =
-  let ps :: String = "!.?'"
-   in c `elem` ps
-
-word8ToChar :: Word8 -> Char
-word8ToChar = toEnum . fromEnum
-
-sentenceChunks :: Monad m => ConduitT B.ByteString B.ByteString m ()
-sentenceChunks = do
-  awaitForever $ \bs -> do
-    let (prefix, suffix) = B.break (isPunct . word8ToChar) bs
-    unless (B.null prefix) $ yield prefix
-    unless (B.null suffix) $ leftover suffix
-
--- chain :: Monad m => ConduitT B.ByteString B.ByteString m ()
--- chain =
---   jsonChunks '}' $ mapC makeResponseChunk
-
--- chunker2 :: ConduitT () B.ByteString (ResourceT IO) () -> IO ()
-chunker2 :: MonadIO m => ConduitT a B.ByteString m () -> ConduitT a c m ()
-chunker2 src =
-  src
-    .| jsonChunks '}'
-    .| mapC makeResponseChunk
-    .| filterC isJust
-    .| mapC fromJust
-    .| mapC response
-    .| mapM_C (liftIO . putStrLn . ("Processing chunk: " ++) . show)
-
 chunker :: IO ()
-chunker =
+chunker = do
+  s <- readFile "test.json"
+  print "Starting"
   runConduitRes $
-    yield testString
+    yield (BSU.fromString s)
       .| jsonChunks '}'
       .| mapC makeResponseChunk
       .| filterC isJust
-      .| mapC fromJust
-      .| mapC response
-      .| mapM_C (liftIO . putStrLn . ("Processing chunk: " ++) . show)
+      .| mapC (getAnswer . fromJust)
+      .| sentenceChunks
+      .| mapM_C (liftIO . print . ("Processing chunk: " ++) . show)
+  print "done"
+
+-- .| jsonChunks '}'
+-- .| mapC makeResponseChunk
+-- .| filterC isJust
+-- .| mapC fromJust
+-- .| mapC response
+-- .| mapM_C (liftIO . putStrLn . ("Processing chunk: " ++) . show)

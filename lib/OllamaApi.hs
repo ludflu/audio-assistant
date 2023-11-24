@@ -5,7 +5,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module OllamaApi (answerQuestion) where
+module OllamaApi (answerQuestion, getAnswer, makeResponseChunk, sentenceChunks, jsonChunks) where
 
 import Conduit (ConduitM, ConduitT, MonadResource, awaitForever, concatC, concatMapAccumC, concatMapC, concatMapCE, filterC, leftover, mapAccumWhileC, mapC, mapCE, mapM_C, runConduit, runConduitRes, sinkLazy, sourceLazy, yield, (.|))
 import Control.Concurrent (forkIO)
@@ -13,7 +13,7 @@ import Control.Concurrent.STM (STM, TQueue, atomically, readTVar, writeTQueue, w
 import Control.Exception (throwIO)
 import Control.Monad (liftM, unless, when)
 import Control.Monad.IO.Class (MonadIO (..))
-import qualified Control.Monad.RWS as BLS
+-- import qualified Control.Monad.RWS as BLS
 import Control.Monad.Trans.Resource (ResourceT, liftResourceT, runResourceT)
 import Data.Aeson (FromJSON, ToJSON, Value (Number, Object, String), decode, encode, fromJSON, json, parseJSON)
 import Data.Aeson.Encoding (string)
