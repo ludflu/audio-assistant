@@ -187,20 +187,16 @@ answerQuestion'' mailbox question =
             rsp <- http request manager
             runConduit $
               responseBody rsp
-                -- runConduit $
-                --   responseBody rsp
-                --     .| jsonChunks '}'
-                --     .| mapC makeResponseChunk
-                --     .| filterC isJust
-                --     .| mapC (getAnswer . fromJust)
-                --     .| sentenceChunks
-                --     .| mapAccumWhile
-                --       ( \acc x ->
-                --           if stringContains "." acc || stringContains "," acc
-                --             then Left x
-                --             else Right ((), acc)
-                --       )
-                --       ()
-                --                .| mapC (:)
-                -- .| concatMapC (:)
+                .| jsonChunks '}'
+                .| mapC makeResponseChunk
+                .| filterC isJust
+                .| mapC (getAnswer . fromJust)
+                .| sentenceChunks
+                .| mapAccumWhile
+                  ( \acc x ->
+                      if stringContains "." acc || stringContains "," acc
+                        then Left x
+                        else Right ((), acc)
+                  )
+                  ()
                 .| mapM_C (writeToMailBox' mailbox)
