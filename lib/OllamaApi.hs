@@ -22,8 +22,9 @@ import qualified Data.ByteString as B
 import Data.ByteString.Builder (byteString)
 import Data.ByteString.Char8 (unpack)
 import qualified Data.ByteString.Lazy as BLS
+import Data.Char (isPunctuation)
 import Data.Conduit.Binary (sinkFile, sinkHandle, sinkLbs, sourceLbs)
-import Data.Conduit.Combinators (concatMapE, concatMapM, mapAccumWhile, mapE)
+import Data.Conduit.Combinators (concatMapE, concatMapM, mapAccumWhile, mapE, splitOnUnboundedE)
 import Data.List (isInfixOf)
 import Data.Maybe (fromJust, isJust, mapMaybe)
 import qualified Data.Text as T
@@ -107,7 +108,7 @@ sentenceChunks :: Monad m => ConduitM String String m ()
 sentenceChunks = do
   awaitForever $ \bs -> do
     let (prefix, suffix) = break isPunct bs
-    unless (null prefix) $ yield prefix
+    unless (null prefix) $ yield $ prefix <> ","
     unless (null suffix) $ do
       let rest = drop 1 suffix
       unless (null rest) $ leftover rest
@@ -193,7 +194,12 @@ answerQuestion' mailbox question =
                 .| mapC makeResponseChunk
                 .| filterC isJust
                 .| mapC (getAnswer . fromJust)
-                .| sentenceChunks
+                .| splitOnUnboundedE isPunctuation
+                -- .| jsonChunks '}'
+                -- .| mapC makeResponseChunk
+                -- .| filterC isJust
+                -- .| mapC (getAnswer . fromJust)
+                -- .| sentenceChunks
                 -- .| mapAccumWhile
                 --   ( \acc x ->
                 --       if stringContains "." acc || stringContains "," acc

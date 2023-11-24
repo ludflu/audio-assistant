@@ -14,6 +14,8 @@ import qualified Data.ByteString.Lazy as BLS
 import Data.ByteString.UTF8 as BSU
 import Data.Char
 import qualified Data.Conduit.Binary as CB
+import Data.Conduit.Combinators (mapAccumWhile, splitOnUnboundedE)
+import Data.List (isInfixOf)
 import Data.Maybe
 import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf8)
@@ -30,6 +32,9 @@ data OllamaResponse = OllamaResponse
 
 instance FromJSON OllamaResponse
 
+stringContains :: String -> String -> Bool
+stringContains a b = b `isInfixOf` a
+
 chunker :: IO ()
 chunker = do
   s <- readFile "test.json"
@@ -40,7 +45,7 @@ chunker = do
       .| mapC makeResponseChunk
       .| filterC isJust
       .| mapC (getAnswer . fromJust)
-      .| sentenceChunks
+      .| splitOnUnboundedE isPunctuation
       .| mapM_C (liftIO . print . ("Processing chunk: " ++) . show)
   print "done"
 
