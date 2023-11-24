@@ -173,9 +173,9 @@ answerQuestion' mailbox question =
                 .| sentenceChunks
                 .| mapAccumWhile
                   ( \acc x ->
-                      if stringContains acc "."
-                        then Right ((), acc)
-                        else Left x
+                      if stringContains "." acc || stringContains "," acc
+                        then Left x
+                        else Right ((), acc)
                   )
                   ()
                 --                .| mapC (:)
