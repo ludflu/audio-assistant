@@ -83,6 +83,11 @@ instance FromJSON OllamaResponse
 getAnswer :: OllamaResponse -> String
 getAnswer = response
 
+parseAnswer :: BLS.ByteString -> Maybe String
+parseAnswer llamaRsp =
+  let rsp = decode llamaRsp
+   in fmap response rsp
+
 jsonChunks :: Monad m => Char -> ConduitM B.ByteString B.ByteString m ()
 jsonChunks trigger = do
   let triggerByte = fromIntegral (fromEnum trigger)
@@ -160,24 +165,42 @@ answerQuestion' mailbox question =
         let request'' = request' {method = "POST", requestBody = body, port = apiPort}
             request = setRequestResponseTimeout (responseTimeoutMicro (500 * 1000000)) request''
         manager <- newManager tlsManagerSettings
+        runResourceT $ do
+          rsp <- http request manager
+          rlbs <- runConduit $ responseBody rsp .| sinkLbs
+          let llamaRsp = fromJust $ parseAnswer rlbs
+          mapM_ (writeToMailBox' mailbox) [llamaRsp]
+
+answerQuestion'' :: TQueue String -> String -> IO ()
+answerQuestion'' mailbox question =
+  let payload = OllamaRequest {model = "llama2", prompt = question, stream = False}
+      url = "http://192.168.1.200/api/generate"
+      apiPort = 11434
+      body = RequestBodyLBS $ encode payload
+   in do
+        request' <- parseRequest url
+        let request'' = request' {method = "POST", requestBody = body, port = apiPort}
+            request = setRequestResponseTimeout (responseTimeoutMicro (500 * 1000000)) request''
+        manager <- newManager tlsManagerSettings
         runResourceT $
           do
             rsp <- http request manager
-
             runConduit $
               responseBody rsp
-                .| jsonChunks '}'
-                .| mapC makeResponseChunk
-                .| filterC isJust
-                .| mapC (getAnswer . fromJust)
-                .| sentenceChunks
-                .| mapAccumWhile
-                  ( \acc x ->
-                      if stringContains "." acc || stringContains "," acc
-                        then Left x
-                        else Right ((), acc)
-                  )
-                  ()
+                -- runConduit $
+                --   responseBody rsp
+                --     .| jsonChunks '}'
+                --     .| mapC makeResponseChunk
+                --     .| filterC isJust
+                --     .| mapC (getAnswer . fromJust)
+                --     .| sentenceChunks
+                --     .| mapAccumWhile
+                --       ( \acc x ->
+                --           if stringContains "." acc || stringContains "," acc
+                --             then Left x
+                --             else Right ((), acc)
+                --       )
+                --       ()
                 --                .| mapC (:)
                 -- .| concatMapC (:)
                 .| mapM_C (writeToMailBox' mailbox)
