@@ -192,11 +192,11 @@ answerQuestion' mailbox question =
                 .| filterC isJust
                 .| mapC (getAnswer . fromJust)
                 .| sentenceChunks
-                .| mapAccumWhile
-                  ( \acc x ->
-                      if stringContains "." acc || stringContains "," acc
-                        then Left x
-                        else Right ((), acc)
-                  )
-                  ()
+                -- .| mapAccumWhile
+                --   ( \acc x ->
+                --       if stringContains "." acc || stringContains "," acc
+                --         then Left x
+                --         else Right ((), acc)
+                --   )
+                --   ()
                 .| mapM_C (writeToMailBox' mailbox)
