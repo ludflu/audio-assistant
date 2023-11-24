@@ -5,7 +5,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module OllamaApi (answerQuestion, getAnswer, makeResponseChunk, sentenceChunks, jsonChunks) where
+module OllamaApi (answerQuestion, getAnswer, makeResponseChunk, jsonChunks) where
 
 import Conduit (ConduitM, ConduitT, MonadResource, awaitForever, concatC, concatMapAccumC, concatMapC, concatMapCE, filterC, leftover, mapAccumWhileC, mapC, mapCE, mapM_C, runConduit, runConduitRes, sinkLazy, sourceLazy, yield, (.|))
 import Control.Concurrent (forkIO)
@@ -13,7 +13,6 @@ import Control.Concurrent.STM (STM, TQueue, atomically, readTVar, writeTQueue, w
 import Control.Exception (throwIO)
 import Control.Monad (liftM, unless, when)
 import Control.Monad.IO.Class (MonadIO (..))
--- import qualified Control.Monad.RWS as BLS
 import Control.Monad.Trans.Resource (ResourceT, liftResourceT, runResourceT)
 import Data.Aeson (FromJSON, ToJSON, Value (Number, Object, String), decode, encode, fromJSON, json, parseJSON)
 import Data.Aeson.Encoding (string)
@@ -54,21 +53,6 @@ data OllamaRequest = OllamaRequest
   }
   deriving (Generic)
 
--- data OllamaResponse = OllamaResponse
---   { model :: String,
---     created_at :: String,
---     response :: String,
---     done :: Bool,
---     context :: Maybe [Int],
---     total_duration :: Maybe Int,
---     load_duration :: Maybe Int,
---     prompt_eval_count :: Int,
---     prompt_eval_duration :: Int,
---     eval_count :: Int,
---     eval_duration :: Int
---   }
---   deriving (Generic, Show)
-
 data OllamaResponse = OllamaResponse
   { model :: String,
     created_at :: String,
@@ -104,24 +88,6 @@ isPunct c =
   let ps :: String = "!.?,"
    in c `elem` ps
 
-sentenceChunks :: Monad m => ConduitM String String m ()
-sentenceChunks = do
-  awaitForever $ \bs -> do
-    let (prefix, suffix) = break isPunct bs
-    unless (null prefix) $ yield $ prefix <> ","
-    unless (null suffix) $ do
-      let rest = drop 1 suffix
-      unless (null rest) $ leftover rest
-
-word8ToChar :: Word8 -> Char
-word8ToChar = toEnum . fromEnum
-
-stringToByteString :: String -> B.ByteString
-stringToByteString = TE.encodeUtf8 . T.pack
-
-byteStringToString :: B.ByteString -> String
-byteStringToString = unpack
-
 makeResponseChunk :: B.ByteString -> Maybe OllamaResponse
 makeResponseChunk = decode . BLS.fromStrict
 
@@ -138,15 +104,6 @@ answerQuestion mailbox question = do
   print question
   forkIO $ answerQuestion' mailbox question
   return ()
-
-concatBytes :: B.ByteString -> B.ByteString -> (B.ByteString, B.ByteString)
-concatBytes acc chunk = (acc <> chunk, B.empty)
-
-concatString :: String -> String -> (String, String)
-concatString acc chunk = (acc <> chunk, [])
-
-stringContains :: String -> String -> Bool
-stringContains a b = b `isInfixOf` a
 
 answerQuestionNoStream :: TQueue String -> String -> IO ()
 answerQuestionNoStream mailbox question =
