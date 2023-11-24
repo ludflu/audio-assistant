@@ -45,6 +45,7 @@ import Network.HTTP.Conduit
 import Network.HTTP.Req (req)
 import Network.HTTP.Simple (getResponseBody, httpJSON, httpLBS, setRequestBodyJSON, setRequestHeaders, setRequestMethod, setRequestPort, setRequestResponseTimeout)
 import Network.HTTP.Types
+import SpokenNumbers
 
 newtype SpeechRequest = SpeechRequest
   { message :: String
@@ -68,7 +69,8 @@ parseDuration rsp =
 
 sayText :: String -> IO Double
 sayText msg =
-  let payload = SpeechRequest {message = msg}
+  let substitutedMsg = convertAllNumbers msg
+      payload = SpeechRequest {message = substitutedMsg}
       url = "http://127.0.0.1/talk"
       apiPort = 5002
    in do
