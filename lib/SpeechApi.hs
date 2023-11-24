@@ -42,7 +42,8 @@ import Network.HTTP.Conduit
     responseTimeoutMicro,
     tlsManagerSettings,
   )
-import Network.HTTP.Simple (getResponseBody, httpJSON, httpLBS, setRequestResponseTimeout)
+import Network.HTTP.Req (req)
+import Network.HTTP.Simple (getResponseBody, httpJSON, httpLBS, setRequestBodyJSON, setRequestHeaders, setRequestMethod, setRequestPort, setRequestResponseTimeout)
 import Network.HTTP.Types
 
 newtype SpeechRequest = SpeechRequest
@@ -70,11 +71,16 @@ sayText msg =
   let payload = SpeechRequest {message = msg}
       url = "http://127.0.0.1/talk"
       apiPort = 5002
-      body = RequestBodyLBS $ encode payload
    in do
         request' <- parseRequest url
-        let request'' = request' {method = "POST", requestBody = body, port = apiPort, requestHeaders = [(hContentType, "application/json")]}
-            request = setRequestResponseTimeout (responseTimeoutMicro (500 * 1000000)) request''
+        let request =
+              setRequestResponseTimeout (responseTimeoutMicro (500 * 1000000))
+                . setRequestHeaders [(hContentType, "application/json")]
+                . setRequestBodyJSON payload
+                . setRequestMethod "POST"
+                . setRequestPort apiPort
+                $ request'
+
         rsp <- httpLBS request
         liftIO $ print $ getResponseBody rsp
         return $
