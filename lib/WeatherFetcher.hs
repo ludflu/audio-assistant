@@ -1,17 +1,15 @@
 module WeatherFetcher (getWeather) where
 
-import Listener ( ListenerMonad, speak ) 
+import Listener (ListenerMonad, speak, writeToMailBox)
 
-
---import WeatherApi.WWOnline
+-- import WeatherApi.WWOnline
 
 mykey :: String
-mykey   = "top-secret"
+mykey = "top-secret"
 
 mycity, mystate :: String
-mycity  = "Philadelphia"
+mycity = "Philadelphia"
 mystate = "PA"
 
-getWeather :: String -> String -> ListenerMonad String
-getWeather key zip = return "test"
-
+getWeather :: String -> String -> ListenerMonad ()
+getWeather key zip = writeToMailBox "test"

@@ -41,17 +41,25 @@ executable vad-audio
                    WeatherFetcher,
                    SendEmail,
                    VoiceDetectionSliceReader,
-                   DavinciApi,
+                   OllamaApi,
+                   OllamaResponseChunker,
                    Reminders
 
     build-depends:    base,
+                      bytestring,
+                      utf8-string,
                       mtl,
+                      stm,
                       hsndfile,
                       conduit,
                       conduit-audio-samplerate,
                       conduit-audio,
                       conduit-audio-lame,
                       conduit-audio-sndfile,
+                      http-types,
+                      http-conduit,
+                      resourcet,
+                      conduit-extra,
                       webrtc-vad,
                       vector,
                       aeson,
@@ -86,26 +94,35 @@ test-suite vad-tests
   other-modules: Listener
   hs-source-dirs:
       tests,
-      app
+      app,
+      lib
   main-is: Tests.hs
   other-modules:
       ConfigParser,
       SendAudio,
-      VoiceDetectionSliceReader
+      VoiceDetectionSliceReader,
+      OllamaResponseChunker
   build-depends:
       base >= 4.7 && < 5,
+      bytestring,
+      utf8-string,
       mtl,
+      stm,
+      resourcet,
       hsndfile,
       conduit,
+      conduit-extra,
       conduit-audio-samplerate,
       conduit-audio,
       conduit-audio-lame,
       conduit-audio-sndfile,
       webrtc-vad,
+      http-types,
       vector,
       aeson,
       req,
       http-client,
+      http-conduit,
       time,
       timezone-olson,
       timezone-series,

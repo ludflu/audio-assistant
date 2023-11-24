@@ -9,43 +9,47 @@ import Control.Monad.State (liftIO)
 import Listener
   ( ListenerMonad,
     listenPatiently,
-    say,
+    writeToMailBox,
   )
 import MatchHelper (isNo, isYes)
 import System.IO (IOMode (ReadWriteMode), hGetContents', openFile)
 
 record :: ListenerMonad String
 record = do
-  say "What should the note say?"
+  writeToMailBox "What should the note say?"
   listenPatiently
 
 say_ :: String -> ListenerMonad ()
 say_ note = do
-  _ <- say note
+  _ <- writeToMailBox note
   return ()
 
 askQuestion :: String -> ListenerMonad Bool
 askQuestion q = do
-  say q
+  writeToMailBox q
   a <- listenPatiently
   if isYes a
     then return True
     else
       if isNo a
         then return False
-        else say "Please say 'yes, affirmative' or 'no, negative'" >> askQuestion q
+        else writeToMailBox "Please say 'yes, affirmative' or 'no, negative'" >> askQuestion q
 
-recordNote :: ListenerMonad String
+recordNote :: ListenerMonad ()
 recordNote = do
   note <- record
   let fname = "test.txt"
   _ <- liftIO $ writeFile fname note
   shouldRead <- askQuestion "Done. Should I read it back?"
-  when shouldRead (say_ note)
-  return ""
+  when shouldRead (writeToMailBox note)
 
-readNote :: ListenerMonad String
-readNote = do
+getNote :: IO String
+getNote = do
   let fname = "test.txt"
-  handle <- liftIO $ openFile fname ReadWriteMode
-  liftIO $ hGetContents' handle
+  handle <- openFile fname ReadWriteMode
+  hGetContents' handle
+
+readNote :: ListenerMonad ()
+readNote = do
+  msg <- liftIO getNote
+  writeToMailBox msg

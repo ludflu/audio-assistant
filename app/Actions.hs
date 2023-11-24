@@ -8,6 +8,7 @@
 module Actions where
 
 import ConfigParser (EnvConfig (mailPassword, mailUser))
+import Control.Concurrent.STM (STM, TQueue, atomically, readTVar, writeTVar)
 import Control.Monad.Reader (MonadReader, ReaderT, ask, liftIO, runReaderT)
 import Control.Monad.ST (RealWorld)
 import Control.Monad.State
@@ -32,7 +33,7 @@ import Data.Time.LocalTime.TimeZone.Olson ()
 import Data.Time.LocalTime.TimeZone.Series
 import Data.Traversable
 import Guess (guessingGame)
-import Listener (ListenerMonad, quitNow, say, speak)
+import Listener (ListenerMonad, ListenerState (mailbox), quitNow, say, speak, writeToMailBox)
 import MatchHelper (dropNonLetters, fuzzyMatch, isMatch, lowerCase)
 import OllamaApi (answerQuestion)
 import RecordNote (readNote, recordNote)
@@ -43,22 +44,27 @@ import System.Process
 import Text.Regex.PCRE.Heavy (Regex, re, scan)
 import WeatherFetcher (getWeather)
 
-type ListenerAction = [String] -> ListenerMonad String
+type ListenerAction = [String] -> ListenerMonad ()
+
+ollamUrl = "http://192.168.1.200/api/generate"
+
+apiPort = 11434
 
 greet :: [String] -> String
 greet params = "Hello " ++ head params ++ " its nice to meet you"
 
-acknowledgeAndAnswer :: String -> ListenerMonad String
-acknowledgeAndAnswer question = do
+acknowledgeAndAnswer :: TQueue String -> [String] -> ListenerMonad ()
+acknowledgeAndAnswer mailbox question = do
   _ <- say "Thinking...  "
-  liftIO $ OllamaApi.answerQuestion question
+  liftIO $ OllamaApi.answerQuestion ollamUrl apiPort mailbox (head question)
+  return ()
 
-regexResponses :: M.Map Regex ListenerAction
-regexResponses =
+regexResponses :: TQueue String -> M.Map Regex ListenerAction
+regexResponses mailbox =
   M.fromList
-    [ ([re|computer my name is (.*)|], speak . greet),
+    [ ([re|computer my name is (.*)|], writeToMailBox . greet),
       ([re|computer what time is it|], const currentTime),
-      ([re|computer please stop|], \x -> quitNow >> speak "Goodbye."),
+      ([re|computer please stop|], const quitNow),
       ([re|computer what day is it|], const currentDay),
       ([re|computer whats the weather|], const $ getWeather "key" "19038"),
       ([re|play the guessing game|], const guessingGame),
@@ -66,11 +72,10 @@ regexResponses =
       ([re|read the note|], const readNote),
       ([re|computer set a reminder for (.*) minutes|], setReminder),
       ([re|email the note|], const sendEmailNote),
-      ([re|i love you computer|], \x -> speak "I love you too!"),
-      ([re|okay genius (.*)|], acknowledgeAndAnswer . head)
+      ([re|(?:okay|ok)[\,]? genius (.*)|], acknowledgeAndAnswer mailbox)
     ]
 
-dispatchRegex :: M.Map Regex ([String] -> ListenerMonad String) -> String -> Maybe (ListenerMonad String)
+dispatchRegex :: M.Map Regex ListenerAction -> String -> ListenerMonad ()
 dispatchRegex responses query =
   let q = dropNonLetters $ lowerCase query
       predicate (rgx, _) = isMatch q rgx
@@ -81,7 +86,12 @@ dispatchRegex responses query =
             onlyMtchs = map snd matches
             onlyFst = map head onlyMtchs
         return $ respFunc onlyFst
-   in maybeFunc
+   in fromMaybe (pure ()) maybeFunc
 
-findResponseRegex :: String -> ListenerMonad (Maybe String)
-findResponseRegex query = sequence $ dispatchRegex regexResponses query
+findResponseRegex :: String -> ListenerMonad ()
+findResponseRegex query = do
+  state <- get
+  let mbox = mailbox state
+      actionMap = regexResponses mbox
+      action = dispatchRegex actionMap query
+  action

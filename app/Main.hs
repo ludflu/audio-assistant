@@ -9,6 +9,7 @@ import Actions (findResponseRegex)
 import ConfigParser (EnvConfig (localpath, wavpath), parseConfig)
 import Control.Concurrent (forkIO, killThread, threadDelay)
 import Control.Concurrent.MVar (MVar, newEmptyMVar)
+import Control.Concurrent.STM (STM, TQueue, atomically, newTQueueIO, readTVar)
 import Control.Monad (unless)
 import Control.Monad.State (liftIO)
 import Data.Time.Clock (UTCTime, getCurrentTime)
@@ -44,7 +45,7 @@ commandLoop = do
   liftIO $ print query
   response <- findResponseRegex query
   liftIO $ print response
-  mapM_ say response
+  -- mapM_ say response
   quit <- shouldQuit
   unless quit commandLoop
 
@@ -53,7 +54,9 @@ run config = do
   currentTime <- getCurrentTime
   currentWorkingDirectory <- getCurrentDirectory
   shouldReset :: MVar FilePath <- newEmptyMVar
-  emptyMailbox :: MVar String <- newEmptyMVar
+
+  emptyMailbox :: TQueue String <- newTQueueIO
+
   print "vad-listener start"
   print currentTime
   print $ show config
