@@ -7,7 +7,7 @@
 
 module SpeechApi (sayText) where
 
-import Conduit (runConduit, runResourceT, (.|))
+import Conduit (MonadIO (liftIO), runConduit, runResourceT, (.|))
 import Control.Monad.IO.Class ()
 import Data.Aeson (FromJSON, ToJSON, Value (Number, Object, String), decode, encode, fromJSON, parseJSON)
 import qualified Data.Aeson.KeyMap as AKM
@@ -34,13 +34,13 @@ import Network.HTTP.Simple (setRequestResponseTimeout)
 newtype SpeechRequest = SpeechRequest
   { message :: String
   }
-  deriving (Generic)
+  deriving (Generic, Show)
 
 data SpeechResponse = SpeechResponse
   { duration :: Double,
     status :: String
   }
-  deriving (Generic)
+  deriving (Generic, Show)
 
 instance ToJSON SpeechRequest
 
@@ -65,4 +65,5 @@ sayText msg =
         runResourceT $ do
           rsp <- http request manager
           rlbs <- runConduit $ responseBody rsp .| sinkLbs
+          liftIO $ print rlbs
           return $ fromJust $ parseDuration rlbs
