@@ -85,7 +85,7 @@ jsonChunks trigger = do
 
 isPunct :: Char -> Bool
 isPunct c =
-  let ps :: String = "!.?,"
+  let ps :: String = "!.?"
    in c `elem` ps
 
 makeResponseChunk :: B.ByteString -> Maybe OllamaResponse
