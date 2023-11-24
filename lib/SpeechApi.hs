@@ -23,7 +23,7 @@ import Network.HTTP.Req
     reqBodyMultipart,
     responseBody,
     runReq,
-    (/:)
+    (/:),
   )
 
 newtype SpeechRequest = SpeechRequest
@@ -31,9 +31,9 @@ newtype SpeechRequest = SpeechRequest
   }
   deriving (Generic)
 
-newtype SpeechResponse = SpeechResponse
+data SpeechResponse = SpeechResponse
   { duration :: Double,
-  status:String
+    status :: String
   }
   deriving (Generic)
 
