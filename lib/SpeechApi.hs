@@ -42,7 +42,7 @@ import Network.HTTP.Conduit
     responseTimeoutMicro,
     tlsManagerSettings,
   )
-import Network.HTTP.Simple (httpJSON, setRequestResponseTimeout)
+import Network.HTTP.Simple (getResponseBody, httpJSON, httpLBS, setRequestResponseTimeout)
 import Network.HTTP.Types
 
 newtype SpeechRequest = SpeechRequest
@@ -75,9 +75,9 @@ sayText msg =
         request' <- parseRequest url
         let request'' = request' {method = "POST", requestBody = body, port = apiPort, requestHeaders = [(hContentType, "application/json")]}
             request = setRequestResponseTimeout (responseTimeoutMicro (500 * 1000000)) request''
-        manager <- newManager tlsManagerSettings
-        runResourceT $ do
-          rsp <- http request manager
-          rlbs <- runConduit $ responseBody rsp .| sinkLbs
-          liftIO $ print rlbs
-          return $ fromJust $ parseDuration rlbs
+        rsp <- httpLBS request
+        liftIO $ print $ getResponseBody rsp
+        return $
+          fromJust $
+            parseDuration $
+              getResponseBody rsp
