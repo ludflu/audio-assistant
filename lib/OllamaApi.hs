@@ -174,8 +174,8 @@ answerQuestion' mailbox question =
                 .| mapAccumWhileC
                   ( \acc x ->
                       if stringContains "." acc || stringContains "," acc
-                        then Right ((), acc)
-                        else Left x
+                        then Left x
+                        else Right ((), acc)
                   )
                   ()
                 --                .| mapC (:)
