@@ -7,17 +7,30 @@
 
 module SpeechApi (sayText) where
 
-import Conduit (MonadIO (liftIO), runConduit, runResourceT, (.|))
-import Control.Monad.IO.Class ()
-import Data.Aeson (FromJSON, ToJSON, Value (Number, Object, String), decode, encode, fromJSON, parseJSON)
+import Conduit (ConduitM, ConduitT, MonadResource, awaitForever, concatC, concatMapAccumC, concatMapC, concatMapCE, filterC, leftover, mapAccumWhileC, mapC, mapCE, mapM_C, runConduit, runConduitRes, sinkLazy, sourceLazy, yield, (.|))
+import Control.Concurrent (forkIO)
+import Control.Concurrent.STM (STM, TQueue, atomically, readTVar, writeTQueue, writeTVar)
+import Control.Exception (throwIO)
+import Control.Monad (liftM, unless, when)
+import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Trans.Resource (ResourceT, liftResourceT, runResourceT)
+import Data.Aeson (FromJSON, ToJSON, Value (Number, Object, String), decode, encode, fromJSON, json, parseJSON)
+import Data.Aeson.Encoding (string)
 import qualified Data.Aeson.KeyMap as AKM
+import qualified Data.ByteString as B
+import Data.ByteString.Builder (byteString)
+import Data.ByteString.Char8 (unpack)
 import qualified Data.ByteString.Lazy as BLS
-import Data.Conduit.Binary (sinkLbs)
-import Data.Maybe (fromJust)
-import Data.Scientific (toRealFloat)
-import Data.Text (Text, unpack)
+import Data.Char (isPunctuation)
+import Data.Conduit.Binary (sinkFile, sinkHandle, sinkLbs, sourceLbs)
+import Data.Conduit.Combinators (concatMapE, concatMapM, mapAccumWhile, mapE, splitOnUnboundedE)
+import Data.List (isInfixOf)
+import Data.Maybe (fromJust, isJust, mapMaybe)
+import qualified Data.Text as T
+import Data.Text.Array (run)
+import qualified Data.Text.Encoding as TE
+import Data.Word (Word8)
 import GHC.Generics (Generic)
-import qualified Network.HTTP.Client.MultipartFormData as LM
 import Network.HTTP.Conduit
   ( Request (method, port, requestBody, requestHeaders, responseTimeout, secure),
     RequestBody (RequestBodyBS, RequestBodyLBS),
@@ -30,6 +43,7 @@ import Network.HTTP.Conduit
     tlsManagerSettings,
   )
 import Network.HTTP.Simple (setRequestResponseTimeout)
+import Network.HTTP.Types
 
 newtype SpeechRequest = SpeechRequest
   { message :: String
