@@ -154,8 +154,8 @@ stringCombine' a b = stringCombine $ a <> b
 stringContains :: String -> String -> Bool
 stringContains a b = b `isInfixOf` a
 
-answerQuestion' :: TQueue String -> String -> IO ()
-answerQuestion' mailbox question =
+answerQuestion'' :: TQueue String -> String -> IO ()
+answerQuestion'' mailbox question =
   let payload = OllamaRequest {model = "llama2", prompt = question, stream = False}
       url = "http://192.168.1.200/api/generate"
       apiPort = 11434
@@ -171,8 +171,8 @@ answerQuestion' mailbox question =
           let llamaRsp = fromJust $ parseAnswer rlbs
           mapM_ (writeToMailBox' mailbox) [llamaRsp]
 
-answerQuestion'' :: TQueue String -> String -> IO ()
-answerQuestion'' mailbox question =
+answerQuestion' :: TQueue String -> String -> IO ()
+answerQuestion' mailbox question =
   let payload = OllamaRequest {model = "llama2", prompt = question, stream = False}
       url = "http://192.168.1.200/api/generate"
       apiPort = 11434
