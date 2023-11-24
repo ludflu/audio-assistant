@@ -24,6 +24,7 @@ import qualified Data.ByteString.Lazy as BLS
 import Data.Char (isPunctuation)
 import Data.Conduit.Binary (sinkFile, sinkHandle, sinkLbs, sourceLbs)
 import Data.Conduit.Combinators (concatMapE, concatMapM, mapAccumWhile, mapE, splitOnUnboundedE)
+import Data.IntMap.Merge.Lazy (mapWhenMatched)
 import Data.List (isInfixOf)
 import Data.Maybe (fromJust, isJust, mapMaybe)
 import qualified Data.Text as T
@@ -61,9 +62,9 @@ instance ToJSON SpeechRequest
 
 instance FromJSON SpeechResponse
 
-parseDuration :: BLS.ByteString -> Either String Double
+parseDuration :: BLS.ByteString -> Maybe Double
 parseDuration rsp =
-  let srsp = eitherDecode rsp
+  let srsp = decode rsp
    in fmap duration srsp
 
 sayText :: String -> IO Double
@@ -83,6 +84,4 @@ sayText msg =
 
         rsp <- httpLBS request
         liftIO $ print $ getResponseBody rsp
-        let bla = parseDuration $ getResponseBody rsp
-        liftIO $ print bla
-        return 0.0
+        return $ fromJust $ parseDuration $ getResponseBody rsp
