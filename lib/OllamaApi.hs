@@ -151,7 +151,7 @@ stringContains a b = b `isInfixOf` a
 
 answerQuestion' :: TQueue String -> String -> IO ()
 answerQuestion' mailbox question =
-  let payload = OllamaRequest {model = "llama2", prompt = question, stream = True}
+  let payload = OllamaRequest {model = "llama2", prompt = question, stream = False}
       url = "http://192.168.1.200/api/generate"
       apiPort = 11434
       body = RequestBodyLBS $ encode payload
