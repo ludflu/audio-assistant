@@ -46,13 +46,17 @@ import WeatherFetcher (getWeather)
 
 type ListenerAction = [String] -> ListenerMonad ()
 
+ollamUrl = "http://192.168.1.200/api/generate"
+
+apiPort = 11434
+
 greet :: [String] -> String
 greet params = "Hello " ++ head params ++ " its nice to meet you"
 
 acknowledgeAndAnswer :: TQueue String -> [String] -> ListenerMonad ()
 acknowledgeAndAnswer mailbox question = do
   _ <- say "Thinking...  "
-  liftIO $ OllamaApi.answerQuestion mailbox (head question)
+  liftIO $ OllamaApi.answerQuestion ollamUrl apiPort mailbox (head question)
   return ()
 
 regexResponses :: TQueue String -> M.Map Regex ListenerAction

@@ -98,11 +98,11 @@ writeToMailBox' mbox msg =
       print msg
       atomically $ writeTQueue mbox msg
 
-answerQuestion :: TQueue String -> String -> IO ()
-answerQuestion mailbox question = do
+answerQuestion :: String -> Int -> TQueue String -> String -> IO ()
+answerQuestion url port mailbox question = do
   print "sending to api:\n"
   print question
-  forkIO $ answerQuestion' mailbox question
+  forkIO $ answerQuestion' url port mailbox question
   return ()
 
 answerQuestionNoStream :: TQueue String -> String -> IO ()
@@ -122,11 +122,11 @@ answerQuestionNoStream mailbox question =
           let llamaRsp = fromJust $ parseAnswer rlbs
           mapM_ (writeToMailBox' mailbox) [llamaRsp]
 
-answerQuestion' :: TQueue String -> String -> IO ()
-answerQuestion' mailbox question =
+answerQuestion' :: String -> Int -> TQueue String -> String -> IO ()
+answerQuestion' url apiPort mailbox question =
   let payload = OllamaRequest {model = "llama2", prompt = question, stream = False}
-      url = "http://192.168.1.200/api/generate"
-      apiPort = 11434
+      -- url = "http://192.168.1.200/api/generate"
+      -- apiPort = 11434
       body = RequestBodyLBS $ encode payload
    in do
         request' <- parseRequest url
