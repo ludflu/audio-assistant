@@ -7,7 +7,7 @@
 
 module OllamaApi (answerQuestion) where
 
-import Conduit (ConduitM, ConduitT, MonadResource, awaitForever, concatC, concatMapAccumC, concatMapC, concatMapCE, filterC, leftover, mapC, mapM_C, runConduit, runConduitRes, sinkLazy, sourceLazy, yield, (.|))
+import Conduit (ConduitM, ConduitT, MonadResource, awaitForever, concatC, concatMapAccumC, concatMapC, concatMapCE, filterC, leftover, mapC, mapCE, mapM_C, runConduit, runConduitRes, sinkLazy, sourceLazy, yield, (.|))
 import Control.Concurrent (forkIO)
 import Control.Concurrent.STM (STM, TQueue, atomically, readTVar, writeTQueue, writeTVar)
 import Control.Exception (throwIO)
@@ -16,13 +16,15 @@ import Control.Monad.IO.Class (MonadIO (..))
 import qualified Control.Monad.RWS as BLS
 import Control.Monad.Trans.Resource (ResourceT, liftResourceT, runResourceT)
 import Data.Aeson (FromJSON, ToJSON, Value (Number, Object, String), decode, encode, fromJSON, json, parseJSON)
+import Data.Aeson.Encoding (string)
 import qualified Data.Aeson.KeyMap as AKM
 import qualified Data.ByteString as B
 import Data.ByteString.Builder (byteString)
 import Data.ByteString.Char8 (unpack)
 import qualified Data.ByteString.Lazy as BLS
 import Data.Conduit.Binary (sinkFile, sinkHandle, sinkLbs, sourceLbs)
-import Data.Conduit.Combinators (concatMapE, concatMapM, mapE)
+import Data.Conduit.Combinators (concatMapE, concatMapM, mapAccumWhile, mapE)
+import Data.List (isInfixOf)
 import Data.Maybe (fromJust, isJust, mapMaybe)
 import qualified Data.Text as T
 import Data.Text.Array (run)
@@ -141,6 +143,12 @@ concatString acc chunk = (acc <> chunk, [])
 stringCombine :: [String] -> String
 stringCombine = foldr (\x acc -> x <> acc) []
 
+stringCombine' :: [String] -> [String] -> String
+stringCombine' a b = stringCombine $ a <> b
+
+stringContains :: String -> String -> Bool
+stringContains a b = b `isInfixOf` a
+
 answerQuestion' :: TQueue String -> String -> IO ()
 answerQuestion' mailbox question =
   let payload = OllamaRequest {model = "llama2", prompt = question, stream = True}
@@ -163,15 +171,13 @@ answerQuestion' mailbox question =
                 .| filterC isJust
                 .| mapC (getAnswer . fromJust)
                 .| sentenceChunks
-                --              .| mapC (:)
-                --                .| mapE stringCombine
+                .| mapAccumWhile
+                  ( \acc x ->
+                      if stringContains acc "."
+                        then Right ((), acc)
+                        else Left x
+                  )
+                  ()
+                --                .| mapC (:)
+                -- .| concatMapC (:)
                 .| mapM_C (writeToMailBox' mailbox)
-
---                  .| concatMapC strid
--- .| concatC
--- .| concatMapAccumC concatString ""
-
--- -- .| sinkLbs
--- .| mapC byteStringToString
---              .| sentenceChunks
---              .| mapM_C (writeToMailBox' mailbox)
