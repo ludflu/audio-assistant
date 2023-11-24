@@ -32,6 +32,7 @@ import SendAudio (sendAudio)
 import Sound.VAD.WebRTC as Vad
   ( VAD,
   )
+import SpeechApi
 import System.Directory (doesFileExist)
 import System.Process (readProcess)
 import VoiceDetectionSliceReader (readSlice, writeBoundedWave)
@@ -250,24 +251,22 @@ writeToMailBox msg =
 
 say :: String -> ListenerMonad Double
 say msg =
-  let quoted = quote msg
-      args = [quoted]
-      emptystr :: String = ""
-   in do
-        startTime <- liftIO getCurrentTime
-        listenerState <- get
-        config <- ask
-        liftIO $ readProcess (command config) args emptystr
-        endTime <- liftIO getCurrentTime
-        let dur = realToFrac $ nominalDiffTimeToSeconds $ diffUTCTime endTime startTime
-        let offset = timeOffset listenerState + dur + sleepSeconds config -- advance the offset to skip over the time when the computer was talking
-        put
-          listenerState
-            { timeOffset = offset,
-              voiceStartTime = Nothing,
-              voiceEndTime = Nothing
-            }
-        return dur
+  do
+    startTime <- liftIO getCurrentTime
+    listenerState <- get
+    config <- ask
+    --        liftIO $ readProcess (command config) args emptystr
+    dur <- liftIO $ sayText msg
+    endTime <- liftIO getCurrentTime
+    --        let dur = realToFrac $ nominalDiffTimeToSeconds $ diffUTCTime endTime startTime
+    let offset = timeOffset listenerState + dur + sleepSeconds config -- advance the offset to skip over the time when the computer was talking
+    put
+      listenerState
+        { timeOffset = offset,
+          voiceStartTime = Nothing,
+          voiceEndTime = Nothing
+        }
+    return dur
 
 trim :: String -> String
 trim s = T.unpack $ T.strip $ T.pack s

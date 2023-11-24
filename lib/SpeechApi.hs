@@ -32,7 +32,8 @@ newtype SpeechRequest = SpeechRequest
   deriving (Generic)
 
 newtype SpeechResponse = SpeechResponse
-  { duration :: Double
+  { duration :: Double,
+  status:String
   }
   deriving (Generic)
 
@@ -57,6 +58,6 @@ sayText message = runReq defaultHttpConfig $ do
       (http url /: "talk")
       reqBody
       jsonResponse
-      $ port 5001
+      $ port 5002
   return $
     getDuration r
