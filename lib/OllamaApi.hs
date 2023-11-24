@@ -124,9 +124,7 @@ answerQuestionNoStream mailbox question =
 
 answerQuestion' :: String -> Int -> TQueue String -> String -> IO ()
 answerQuestion' url apiPort mailbox question =
-  let payload = OllamaRequest {model = "llama2", prompt = question, stream = False}
-      -- url = "http://192.168.1.200/api/generate"
-      -- apiPort = 11434
+  let payload = OllamaRequest {model = "llama2", prompt = question, stream = True}
       body = RequestBodyLBS $ encode payload
    in do
         request' <- parseRequest url
