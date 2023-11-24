@@ -74,7 +74,7 @@ parseConfig =
           <> short 's'
           <> help "the length of time to wait for a recording after looking for a boundary"
           <> showDefault
-          <> value 0.75
+          <> value 0.50
           <> metavar "FLOAT"
       )
     <*> option

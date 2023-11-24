@@ -62,9 +62,9 @@ instance ToJSON SpeechRequest
 
 instance FromJSON SpeechResponse
 
-parseDuration :: BLS.ByteString -> Maybe Double
+parseDuration :: BLS.ByteString -> Either String Double
 parseDuration rsp =
-  let srsp = decode rsp
+  let srsp = eitherDecode rsp
    in fmap duration srsp
 
 sayText :: String -> IO Double
@@ -84,4 +84,7 @@ sayText msg =
 
         rsp <- httpLBS request
         liftIO $ print $ getResponseBody rsp
-        return $ fromJust $ parseDuration $ getResponseBody rsp
+        let d = parseDuration $ getResponseBody rsp
+         in case d of
+              Left err -> liftIO $ print ("Error parsing result from speech API: " ++ err) >> return 0.0
+              Right dur -> return dur
