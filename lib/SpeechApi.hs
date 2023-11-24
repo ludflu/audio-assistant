@@ -1,4 +1,3 @@
-{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -14,7 +13,7 @@ import Control.Exception (throwIO)
 import Control.Monad (liftM, unless, when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Trans.Resource (ResourceT, liftResourceT, runResourceT)
-import Data.Aeson (FromJSON, ToJSON, Value (Number, Object, String), decode, eitherDecode, encode, fromJSON, json, parseJSON)
+import Data.Aeson (FromJSON, ToJSON, Value (Number, Object, String), decode, eitherDecode, encode, fromJSON, parseJSON)
 import Data.Aeson.Encoding (string)
 import qualified Data.Aeson.KeyMap as AKM
 import qualified Data.ByteString as B
