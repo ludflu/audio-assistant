@@ -7,7 +7,7 @@
 
 module OllamaApi (answerQuestion) where
 
-import Conduit (ConduitM, ConduitT, MonadResource, awaitForever, concatC, concatMapAccumC, concatMapC, concatMapCE, filterC, leftover, mapC, mapCE, mapM_C, runConduit, runConduitRes, sinkLazy, sourceLazy, yield, (.|))
+import Conduit (ConduitM, ConduitT, MonadResource, awaitForever, concatC, concatMapAccumC, concatMapC, concatMapCE, filterC, leftover, mapAccumWhileC, mapC, mapCE, mapM_C, runConduit, runConduitRes, sinkLazy, sourceLazy, yield, (.|))
 import Control.Concurrent (forkIO)
 import Control.Concurrent.STM (STM, TQueue, atomically, readTVar, writeTQueue, writeTVar)
 import Control.Exception (throwIO)
@@ -171,7 +171,7 @@ answerQuestion' mailbox question =
                 .| filterC isJust
                 .| mapC (getAnswer . fromJust)
                 .| sentenceChunks
-                .| mapAccumWhile
+                .| mapAccumWhileC
                   ( \acc x ->
                       if stringContains "." acc || stringContains "," acc
                         then Right ((), acc)
