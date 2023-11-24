@@ -129,16 +129,13 @@ writeToMailBox' :: MonadResource m => TQueue String -> String -> m ()
 writeToMailBox' mbox msg =
   liftResourceT $
     liftIO $ do
-      print "answer:\n"
       print msg
-      print "\n"
       atomically $ writeTQueue mbox msg
 
 answerQuestion :: TQueue String -> String -> IO ()
 answerQuestion mailbox question = do
   print "sending to api:\n"
   print question
-  print "\n"
   forkIO $ answerQuestion' mailbox question
   return ()
 
@@ -148,17 +145,11 @@ concatBytes acc chunk = (acc <> chunk, B.empty)
 concatString :: String -> String -> (String, String)
 concatString acc chunk = (acc <> chunk, [])
 
-stringCombine :: [String] -> String
-stringCombine = foldr (\x acc -> x <> acc) []
-
-stringCombine' :: [String] -> [String] -> String
-stringCombine' a b = stringCombine $ a <> b
-
 stringContains :: String -> String -> Bool
 stringContains a b = b `isInfixOf` a
 
-answerQuestion'' :: TQueue String -> String -> IO ()
-answerQuestion'' mailbox question =
+answerQuestionNoStream :: TQueue String -> String -> IO ()
+answerQuestionNoStream mailbox question =
   let payload = OllamaRequest {model = "llama2", prompt = question, stream = False}
       url = "http://192.168.1.200/api/generate"
       apiPort = 11434
@@ -194,17 +185,5 @@ answerQuestion' mailbox question =
                 .| mapC makeResponseChunk
                 .| filterC isJust
                 .| mapC (getAnswer . fromJust)
-                .| splitOnUnboundedE isPunctuation
-                -- .| jsonChunks '}'
-                -- .| mapC makeResponseChunk
-                -- .| filterC isJust
-                -- .| mapC (getAnswer . fromJust)
-                -- .| sentenceChunks
-                -- .| mapAccumWhile
-                --   ( \acc x ->
-                --       if stringContains "." acc || stringContains "," acc
-                --         then Left x
-                --         else Right ((), acc)
-                --   )
-                --   ()
+                .| splitOnUnboundedE isPunct
                 .| mapM_C (writeToMailBox' mailbox)
