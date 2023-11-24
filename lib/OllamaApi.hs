@@ -103,6 +103,15 @@ isPunct c =
   let ps :: String = "!.?,"
    in c `elem` ps
 
+sentenceChunks :: Monad m => ConduitM String String m ()
+sentenceChunks = do
+  awaitForever $ \bs -> do
+    let (prefix, suffix) = break isPunct bs
+    unless (null prefix) $ yield prefix
+    unless (null suffix) $ do
+      let rest = drop 1 suffix
+      unless (null rest) $ leftover rest
+
 word8ToChar :: Word8 -> Char
 word8ToChar = toEnum . fromEnum
 
@@ -111,13 +120,6 @@ stringToByteString = TE.encodeUtf8 . T.pack
 
 byteStringToString :: B.ByteString -> String
 byteStringToString = unpack
-
-sentenceChunks :: Monad m => ConduitM String String m ()
-sentenceChunks = do
-  awaitForever $ \bs -> do
-    let (prefix, suffix) = break isPunct bs
-    unless (null prefix) $ yield prefix
-    unless (null suffix) $ leftover suffix
 
 makeResponseChunk :: B.ByteString -> Maybe OllamaResponse
 makeResponseChunk = decode . BLS.fromStrict
