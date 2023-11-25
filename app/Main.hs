@@ -12,9 +12,10 @@ import Control.Concurrent (forkIO, killThread, threadDelay)
 import Control.Concurrent.MVar (MVar, newEmptyMVar)
 import Control.Concurrent.STM (STM, TQueue, atomically, newTQueueIO, readTVar)
 import Control.Monad (unless)
+import Control.Monad.Logger (runStdoutLoggingT)
 import Control.Monad.State (liftIO)
 import Data.Time.Clock (UTCTime, getCurrentTime)
-import Database.Persist.Postgresql (ConnectionPool, PostgresConf (PostgresConf, pgConnStr, pgPoolIdleTimeout, pgPoolSize, pgPoolStripes), createPostgresqlPoolWithConf)
+import Database.Persist.Postgresql (ConnectionPool, PostgresConf (PostgresConf, pgConnStr, pgPoolIdleTimeout, pgPoolSize, pgPoolStripes), createPostgresqlPoolWithConf, defaultPostgresConfHooks, withPostgresqlPool, withPostgresqlPoolWithConf)
 import Listener
   ( ListenerMonad,
     initialState,
@@ -63,22 +64,23 @@ run config = do
   print $ show config
   vad <- Vad.create
   let pgconfig = PostgresConf {pgConnStr = "host=localhost port=5432 user=postgres password=<PASSWORD> dbname=vad", pgPoolSize = 2, pgPoolIdleTimeout = 10, pgPoolStripes = 1}
-  pool <- createPostgresqlPoolWithConf pgconfig 2
-  let _config =
-        if localpath config == ""
-          then config {localpath = currentWorkingDirectory}
-          else config
-      outpath =
-        if null $ wavpath config
-          then currentWorkingDirectory
-          else wavpath config
-      startState = initialState currentTime vad shouldReset emptyMailbox (outpath ++ "/in0.wav") (Just pool)
-  recorderThread <- forkIO $ record _config shouldReset 0
-  threadDelay 4000000 -- wait 4 seconds for the recording thread to start
-  runListenerMonad commandLoop _config startState
-  print "ending program, killing recorder thread"
-  killThread recorderThread
-  run config -- dirty hack because things sometimes crash
+  runStdoutLoggingT $ withPostgresqlPoolWithConf pgconfig defaultPostgresConfHooks $ \pool -> do
+    let _config =
+          if localpath config == ""
+            then config {localpath = currentWorkingDirectory}
+            else config
+        outpath =
+          if null $ wavpath config
+            then currentWorkingDirectory
+            else wavpath config
+        startState = initialState currentTime vad shouldReset emptyMailbox (outpath ++ "/in0.wav") (Just pool)
+    liftIO $ do
+      recorderThread <- forkIO $ record _config shouldReset 0
+      liftIO $ threadDelay 4000000 -- wait 4 seconds for the recording thread to start
+      runListenerMonad commandLoop _config startState
+      print "ending program, killing recorder thread"
+      killThread recorderThread
+      run config -- dirty hack because things sometimes crash
 
 main :: IO ()
 main = run =<< execParser opts

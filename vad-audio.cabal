@@ -152,4 +152,5 @@ test-suite vad-tests
       retry,
       safe-exceptions,
       monad-loops,
+      persistent-postgresql
 
