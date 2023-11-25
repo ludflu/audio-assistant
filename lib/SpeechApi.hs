@@ -42,7 +42,6 @@ import Network.HTTP.Conduit
     responseTimeoutMicro,
     tlsManagerSettings,
   )
-import Network.HTTP.Req (req)
 import Network.HTTP.Simple (getResponseBody, httpJSON, httpLBS, setRequestBodyJSON, setRequestHeaders, setRequestMethod, setRequestPort, setRequestResponseTimeout)
 import Network.HTTP.Types
 import SpokenNumbers

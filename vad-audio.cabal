@@ -43,7 +43,8 @@ executable vad-audio
                    VoiceDetectionSliceReader,
                    OllamaApi,
                    OllamaResponseChunker,
-                   Reminders
+                   Reminders,
+                   SpokenNumbers
 
     build-depends:    base,
                       bytestring,
@@ -63,7 +64,6 @@ executable vad-audio
                       webrtc-vad,
                       vector,
                       aeson,
-                      req,
                       ordinal,
                       http-client,
                       time,
@@ -121,7 +121,7 @@ test-suite vad-tests
       http-types,
       vector,
       aeson,
-      req,
+      ordinal,
       http-client,
       http-conduit,
       time,
