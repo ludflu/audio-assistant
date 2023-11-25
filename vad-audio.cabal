@@ -44,6 +44,7 @@ executable vad-audio
                    OllamaApi,
                    OllamaResponseChunker,
                    Reminders,
+                   ChatLogger,
                    SpokenNumbers
 
     build-depends:    base,
@@ -86,7 +87,9 @@ executable vad-audio
                       safe-exceptions,
                       directory,
                       monad-loops,
-                      persistent
+                      persistent,
+                      persistent-postgresql,
+                      monad-logger                    
     hs-source-dirs:   app, lib
     default-language: Haskell2010
     default-extensions:  QuasiQuotes, FlexibleContexts
