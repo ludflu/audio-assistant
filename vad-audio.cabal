@@ -102,7 +102,10 @@ test-suite vad-tests
       ConfigParser,
       SendAudio,
       VoiceDetectionSliceReader,
-      OllamaResponseChunker
+      OllamaResponseChunker,
+      OllamaApi,
+      SpeechApi,
+      SpokenNumbers
   build-depends:
       base >= 4.7 && < 5,
       bytestring,

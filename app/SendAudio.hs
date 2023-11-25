@@ -12,6 +12,7 @@ import qualified Data.ByteString.Lazy as BLS
 import Data.Conduit.Binary (sinkLbs)
 import Data.Text (Text, unpack)
 import GHC.Generics (Generic)
+import Network.HTTP.Client.MultipartFormData (formDataBody, partFileSource)
 import qualified Network.HTTP.Client.MultipartFormData as LM
 import Network.HTTP.Conduit
   ( Request (method, port, requestBody, requestHeaders, responseTimeout, secure),
@@ -21,10 +22,11 @@ import Network.HTTP.Conduit
     httpLbs,
     newManager,
     parseRequest,
+    parseUrl,
     responseTimeoutMicro,
     tlsManagerSettings,
   )
-import Network.HTTP.Simple (getResponseBody, httpLBS, setRequestBodyFile, setRequestMethod, setRequestPort, setRequestResponseTimeout)
+import Network.HTTP.Simple (getResponseBody, httpLBS, setRequestBody, setRequestBodyFile, setRequestMethod, setRequestPort, setRequestResponseTimeout)
 
 data TranscriptionResponse = TranscriptionResponse
   { text :: String,
@@ -64,15 +66,16 @@ getTranscript = eitherDecode
 sendAudio :: String -> Int -> FilePath -> IO String
 sendAudio url port fp =
   do
-    request' <- parseRequest url
     manager <- newManager tlsManagerSettings
-    let request =
+    request <- parseRequest url
+    let filesource = partFileSource "file" fp
+        request' =
           setRequestResponseTimeout (responseTimeoutMicro (500 * 1000000))
-            . setRequestBodyFile fp
             . setRequestMethod "POST"
             . setRequestPort port
-            $ request'
-    rsp <- httpLBS request
+            $ request
+    r <- formDataBody [filesource] request'
+    rsp <- httpLbs r manager
     let response = getTranscript $ getResponseBody rsp
      in return $ case response of
           Left err -> "" -- liftIO $ print ("transcription error" ++ err) >> return ""
