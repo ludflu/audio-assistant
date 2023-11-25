@@ -1,5 +1,6 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -13,6 +14,7 @@ import Control.Concurrent.STM (STM, TQueue, atomically, newTQueueIO, readTVar)
 import Control.Monad (unless)
 import Control.Monad.State (liftIO)
 import Data.Time.Clock (UTCTime, getCurrentTime)
+import Database.Persist.Postgresql (ConnectionPool, PostgresConf (PostgresConf, pgConnStr, pgPoolIdleTimeout, pgPoolSize, pgPoolStripes), createPostgresqlPoolWithConf)
 import Listener
   ( ListenerMonad,
     initialState,
@@ -60,6 +62,8 @@ run config = do
   print currentTime
   print $ show config
   vad <- Vad.create
+  let pgconfig = PostgresConf {pgConnStr = "host=localhost port=5432 user=postgres password=<PASSWORD> dbname=vad", pgPoolSize = 2, pgPoolIdleTimeout = 10, pgPoolStripes = 1}
+  pool <- createPostgresqlPoolWithConf pgconfig 2
   let _config =
         if localpath config == ""
           then config {localpath = currentWorkingDirectory}
@@ -68,7 +72,7 @@ run config = do
         if null $ wavpath config
           then currentWorkingDirectory
           else wavpath config
-      startState = initialState currentTime vad shouldReset emptyMailbox (outpath ++ "/in0.wav")
+      startState = initialState currentTime vad shouldReset emptyMailbox (outpath ++ "/in0.wav") (Just pool)
   recorderThread <- forkIO $ record _config shouldReset 0
   threadDelay 4000000 -- wait 4 seconds for the recording thread to start
   runListenerMonad commandLoop _config startState

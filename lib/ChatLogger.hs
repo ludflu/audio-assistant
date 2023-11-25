@@ -43,7 +43,7 @@ share
 |]
 
 connStr :: ConnectionString
-connStr = "host=localhost dbname=mydatabase user=myuser password=mypassword port=5432"
+connStr = "host=localhost dbname=jsnavely user=jsnavely password=mypassword port=5432"
 
 main :: IO ()
 main =
