@@ -190,7 +190,7 @@ listenWithThreshold threshold = do
         let se = getStartEnd (voiceStart boundary) (voiceEnd boundary)
             (start, end) = fromMaybe (0.0, 0.0) se -- this default should never happen
         writeBoundedWave (path listener) capfilepath (start - 0.25) end (audioRate env) -- back up a 1/4 second to make sure we don't lose anything
-        transcript <- sendAudio capfilepath
+        transcript <- sendAudio "http://127.0.0.1/" 5000 capfilepath -- TODO get this from configuration
         when (debug env) (liftIO $ print transcript)
         return transcript
     else do
@@ -255,10 +255,8 @@ say msg =
     startTime <- liftIO getCurrentTime
     listenerState <- get
     config <- ask
-    --        liftIO $ readProcess (command config) args emptystr
     dur <- liftIO $ sayText msg
     endTime <- liftIO getCurrentTime
-    --        let dur = realToFrac $ nominalDiffTimeToSeconds $ diffUTCTime endTime startTime
     let offset = timeOffset listenerState + dur + sleepSeconds config -- advance the offset to skip over the time when the computer was talking
     put
       listenerState

@@ -1,40 +1,58 @@
+{-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module SendAudio (sendAudio) where
 
+import Conduit (runResourceT)
 import Control.Monad.IO.Class ()
-import Data.Aeson (Value (Object, String))
+import Data.Aeson (FromJSON, Value (Object, String), eitherDecode)
 import qualified Data.Aeson.KeyMap as AKM
+import qualified Data.ByteString.Lazy as BLS
+import Data.Conduit.Binary (sinkLbs)
 import Data.Text (Text, unpack)
+import GHC.Generics (Generic)
+import Network.HTTP.Client.MultipartFormData (formDataBody, partFileSource)
 import qualified Network.HTTP.Client.MultipartFormData as LM
-import Network.HTTP.Req
-  ( POST (POST),
-    defaultHttpConfig,
+import Network.HTTP.Conduit
+  ( Request (method, port, requestBody, requestHeaders, responseTimeout, secure),
+    RequestBody (RequestBodyBS, RequestBodyLBS),
+    Response (responseBody),
     http,
-    jsonResponse,
-    port,
-    req,
-    reqBodyMultipart,
-    responseBody,
-    runReq,
+    httpLbs,
+    newManager,
+    parseRequest,
+    parseUrl,
+    responseTimeoutMicro,
+    tlsManagerSettings,
   )
+import Network.HTTP.Simple (getResponseBody, httpLBS, setRequestBody, setRequestBodyFile, setRequestMethod, setRequestPort, setRequestResponseTimeout)
 
-getTranscript :: Value -> Text
-getTranscript (Object response) = case AKM.lookup "text" response of
-  Just (String transcript) -> transcript
-  _ -> "--------------"
+data TranscriptionResponse = TranscriptionResponse
+  { text :: String,
+    language :: String
+  }
+  deriving (Generic, Show)
 
--- TODO can we replace req with http-conduit?
-sendAudio :: FilePath -> IO String
-sendAudio fp = runReq defaultHttpConfig $ do
-  let part = LM.partFileSource "file" fp
-  body <- reqBodyMultipart [part]
-  r <-
-    req
-      POST -- method
-      (http "127.0.0.1") -- safe by construction URL
-      body
-      jsonResponse -- specify how to interpret response
-      $ port 5000
-  let response = responseBody r :: Value
-  return $ unpack $ getTranscript response
+instance FromJSON TranscriptionResponse
+
+getTranscript :: BLS.ByteString -> Either String TranscriptionResponse
+getTranscript = eitherDecode
+
+sendAudio :: String -> Int -> FilePath -> IO String
+sendAudio url port fp =
+  do
+    manager <- newManager tlsManagerSettings
+    request <- parseRequest url
+    let filesource = partFileSource "file" fp
+        request' =
+          setRequestResponseTimeout (responseTimeoutMicro (500 * 1000000))
+            . setRequestMethod "POST"
+            . setRequestPort port
+            $ request
+    r <- formDataBody [filesource] request'
+    rsp <- httpLbs r manager
+    let response = getTranscript $ getResponseBody rsp
+     in return $ case response of
+          Left err -> "" -- liftIO $ print ("transcription error" ++ err) >> return ""
+          Right transcriptionResponse -> text transcriptionResponse

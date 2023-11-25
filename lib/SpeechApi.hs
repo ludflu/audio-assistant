@@ -42,7 +42,6 @@ import Network.HTTP.Conduit
     responseTimeoutMicro,
     tlsManagerSettings,
   )
-import Network.HTTP.Req (req)
 import Network.HTTP.Simple (getResponseBody, httpJSON, httpLBS, setRequestBodyJSON, setRequestHeaders, setRequestMethod, setRequestPort, setRequestResponseTimeout)
 import Network.HTTP.Types
 import SpokenNumbers
@@ -84,7 +83,6 @@ sayText msg =
                 $ request'
 
         rsp <- httpLBS request
-        liftIO $ print $ getResponseBody rsp
         let d = parseDuration $ getResponseBody rsp
          in case d of
               Left err -> liftIO $ print ("Error parsing result from speech API: " ++ err) >> return 0.0
