@@ -36,32 +36,8 @@ data TranscriptionResponse = TranscriptionResponse
 
 instance FromJSON TranscriptionResponse
 
--- {'text': " Ok, genius, who's the fairest of them all?",
--- 'segments': [{'id': 0, 'seek': 0, 'start': 0.0, 'end': 3.0, 'text': " Ok, genius, who's the fairest of them all?", 'tokens': [50364, 3477, 11, 14017, 11, 567, 311, 264, 4865, 372, 295, 552, 439, 30, 50514],
--- 'temperature': 0.0, 'avg_logprob': -0.499399870634079, 'compression_ratio': 0.8936170212765957, 'no_speech_prob': 0.03356686607003212}], 'language': 'en'}
-
--- getTranscript :: Value -> Text
--- getTranscript (Object response) = case AKM.lookup "text" response of
---   Just (String transcript) -> transcript
---   _ -> "--------------"
-
 getTranscript :: BLS.ByteString -> Either String TranscriptionResponse
 getTranscript = eitherDecode
-
--- TODO can we replace req with http-conduit?
--- sendAudio :: FilePath -> IO String
--- sendAudio fp = runReq defaultHttpConfig $ do
---   let part = LM.partFileSource "file" fp
---   body <- reqBodyMultipart [part]
---   r <-
---     req
---       POST -- method
---       (http "127.0.0.1") -- safe by construction URL
---       body
---       jsonResponse -- specify how to interpret response
---       $ port 5000
---   let response = responseBody r :: Value
---   return $ unpack $ getTranscript response
 
 sendAudio :: String -> Int -> FilePath -> IO String
 sendAudio url port fp =

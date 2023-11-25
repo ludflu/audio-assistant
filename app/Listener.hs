@@ -255,10 +255,8 @@ say msg =
     startTime <- liftIO getCurrentTime
     listenerState <- get
     config <- ask
-    --        liftIO $ readProcess (command config) args emptystr
     dur <- liftIO $ sayText msg
     endTime <- liftIO getCurrentTime
-    --        let dur = realToFrac $ nominalDiffTimeToSeconds $ diffUTCTime endTime startTime
     let offset = timeOffset listenerState + dur + sleepSeconds config -- advance the offset to skip over the time when the computer was talking
     put
       listenerState
