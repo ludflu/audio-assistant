@@ -49,7 +49,10 @@ share
     deriving Show
 |]
 
-type Bla = forall record (m :: Type -> Type). (MonadIO m, PersistRecordBackend record SqlBackend, SafeToInsert record) => record -> ReaderT SqlBackend m (Key record)
+type Bla record = forall record (m :: Type -> Type). (MonadIO m, PersistRecordBackend record SqlBackend, SafeToInsert record) => record -> ReaderT SqlBackend m (Key record)
 
-addAnswer :: Bla
+addAnswer :: Bla Answer
 addAnswer answer = insert answer
+
+addQuery :: Bla Query
+addQuery query = insert Query
