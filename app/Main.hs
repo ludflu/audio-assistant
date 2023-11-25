@@ -56,12 +56,7 @@ run config = do
   currentTime <- getCurrentTime
   currentWorkingDirectory <- getCurrentDirectory
   shouldReset :: MVar FilePath <- newEmptyMVar
-
   emptyMailbox :: TQueue String <- newTQueueIO
-
-  print "vad-listener start"
-  print currentTime
-  print $ show config
   vad <- Vad.create
   let pgconfig = PostgresConf {pgConnStr = "host=localhost port=5432 user=postgres password=<PASSWORD> dbname=vad", pgPoolSize = 2, pgPoolIdleTimeout = 10, pgPoolStripes = 1}
   runStdoutLoggingT $ withPostgresqlPoolWithConf pgconfig defaultPostgresConfHooks $ \pool -> do
@@ -75,6 +70,9 @@ run config = do
             else wavpath config
         startState = initialState currentTime vad shouldReset emptyMailbox (outpath ++ "/in0.wav") (Just pool)
     liftIO $ do
+      print "starting audio-assistant"
+      print currentTime
+      print $ show config
       recorderThread <- forkIO $ record _config shouldReset 0
       liftIO $ threadDelay 4000000 -- wait 4 seconds for the recording thread to start
       runListenerMonad commandLoop _config startState

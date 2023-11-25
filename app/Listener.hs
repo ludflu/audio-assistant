@@ -6,6 +6,7 @@
 
 module Listener where
 
+import ChatLogger (Query (Query))
 import ConfigParser (EnvConfig (recordingLength, sileroHost, sileroPort), activationThreshold, audioRate, debug, localpath, segmentDuration, sleepSeconds, wavpath, whisperHost, whisperPort)
 import Control.Concurrent (threadDelay)
 import Control.Concurrent.MVar (MVar, tryTakeMVar)
@@ -27,7 +28,8 @@ import Data.Char (toLower)
 import Data.Maybe (fromMaybe, isJust, isNothing)
 import qualified Data.Text as T
 import Data.Time.Clock (UTCTime, diffUTCTime, getCurrentTime, nominalDiffTimeToSeconds)
-import Database.Persist.Postgresql (ConnectionPool)
+import Database.Persist (PersistStoreWrite (insert))
+import Database.Persist.Postgresql (ConnectionPool, PersistStoreWrite (insert), SqlPersistM, rawSql, runSqlPersistMPool, runSqlPool, withPostgresqlPool)
 import Numeric (showFFloat)
 import SendAudio (sendAudio)
 import Sound.VAD.WebRTC as Vad
@@ -82,6 +84,15 @@ initialState currentTime vad wasAudioReset mailbox initialPath pool =
       mailbox = mailbox,
       dbPool = pool
     }
+
+rundb :: Query -> ListenerMonad ()
+rundb q = do
+  s <- get
+  case dbPool s of
+    Just pool -> liftIO $ flip runSqlPersistMPool pool $ do
+      insert q
+      return ()
+    Nothing -> return ()
 
 getStartEnd :: Maybe Double -> Maybe Double -> Maybe (Double, Double)
 getStartEnd start end = do

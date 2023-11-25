@@ -1,12 +1,14 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE EmptyDataDecls #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -14,18 +16,23 @@
 
 module ChatLogger where
 
-import Control.Monad.IO.Class (liftIO)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Logger (runStderrLoggingT)
+import Control.Monad.Reader (ReaderT)
+import Data.Kind (Type)
 import Data.Time (UTCTime)
 import Data.Time.Clock (UTCTime, diffUTCTime, getCurrentTime, nominalDiffTimeToSeconds)
-import Database.Persist (PersistStoreWrite (insert))
+import Database.Persist (PersistEntity (Key, PersistEntityBackend), PersistStoreWrite (insert), SafeToInsert)
 import Database.Persist.Postgresql
   ( BackendKey (SqlBackendKey),
+    ConnectionPool,
     ConnectionString,
+    PersistRecordBackend,
     runMigration,
     runSqlPersistMPool,
     withPostgresqlPool,
   )
+import Database.Persist.SqlBackend
 import Database.Persist.TH (mkMigrate, mkPersist, persistLowerCase, share, sqlSettings)
 
 share
@@ -42,20 +49,7 @@ share
     deriving Show
 |]
 
-connStr :: ConnectionString
-connStr = "host=localhost dbname=jsnavely user=jsnavely password=mypassword port=5432"
+type Bla = forall record (m :: Type -> Type). (MonadIO m, PersistRecordBackend record SqlBackend, SafeToInsert record) => record -> ReaderT SqlBackend m (Key record)
 
-main :: IO ()
-main =
-  runStderrLoggingT $
-    withPostgresqlPool connStr 10 $
-      \pool ->
-        liftIO $
-          do
-            now <- getCurrentTime
-            flip runSqlPersistMPool pool $
-              do
-                runMigration migrateAll
-                qid <- insert $ Query "why is the sky blue" now
-                liftIO $ print qid
-                return ()
+addAnswer :: Bla
+addAnswer answer = insert answer
