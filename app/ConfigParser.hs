@@ -24,7 +24,13 @@ data EnvConfig = EnvConfig
     segmentDuration :: Double,
     debug :: Bool,
     mailUser :: String,
-    mailPassword :: String
+    mailPassword :: String,
+    ollamaHost :: String,
+    ollamaPort :: Int,
+    whisperHost :: String,
+    whisperPort :: Int,
+    sileroHost :: String,
+    sileroPort :: Int
   }
   deriving (Show)
 
@@ -99,4 +105,43 @@ parseConfig =
       ( long "mailPassword"
           <> value ""
           <> help "the password to connect to gmail with"
+      )
+    <*> strOption
+      ( long "ollamaHost"
+          <> value "127.0.0.1"
+          <> help "hostname or ip address of the ollama server"
+      )
+    <*> option
+      auto
+      ( long "ollamaPort"
+          <> help "port for the ollama server completions"
+          <> showDefault
+          <> value 11434
+          <> metavar "INT"
+      )
+    <*> strOption
+      ( long "whisperHost"
+          <> value "127.0.0.1"
+          <> help "hostname or ip address of the ollama server"
+      )
+    <*> option
+      auto
+      ( long "whisperPort"
+          <> help "port for the ollama server completions"
+          <> showDefault
+          <> value 5000
+          <> metavar "INT"
+      )
+    <*> strOption
+      ( long "sileroHost"
+          <> value "127.0.0.1"
+          <> help "hostname or ip address of the silero text-to-speech api"
+      )
+    <*> option
+      auto
+      ( long "whisperPort"
+          <> help "port for the silero text-to-speech api"
+          <> showDefault
+          <> value 5002
+          <> metavar "INT"
       )

@@ -104,23 +104,6 @@ answerQuestion url port mailbox question = do
   forkIO $ answerQuestion' url port mailbox question
   return ()
 
-answerQuestionNoStream :: TQueue String -> String -> IO ()
-answerQuestionNoStream mailbox question =
-  let payload = OllamaRequest {model = "llama2", prompt = question, stream = False}
-      url = "http://192.168.1.200/api/generate"
-      apiPort = 11434
-      body = RequestBodyLBS $ encode payload
-   in do
-        request' <- parseRequest url
-        let request'' = request' {method = "POST", requestBody = body, port = apiPort}
-            request = setRequestResponseTimeout (responseTimeoutMicro (500 * 1000000)) request''
-        manager <- newManager tlsManagerSettings
-        runResourceT $ do
-          rsp <- http request manager
-          rlbs <- runConduit $ responseBody rsp .| sinkLbs
-          let llamaRsp = fromJust $ parseAnswer rlbs
-          mapM_ (writeToMailBox' mailbox) [llamaRsp]
-
 answerQuestion' :: String -> Int -> TQueue String -> String -> IO ()
 answerQuestion' url apiPort mailbox question =
   let payload = OllamaRequest {model = "llama2", prompt = question, stream = True}

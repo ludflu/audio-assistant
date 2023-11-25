@@ -6,7 +6,7 @@
 
 module Listener where
 
-import ConfigParser (EnvConfig (recordingLength), activationThreshold, audioRate, debug, localpath, segmentDuration, sleepSeconds, wavpath)
+import ConfigParser (EnvConfig (recordingLength, sileroHost, sileroPort), activationThreshold, audioRate, debug, localpath, segmentDuration, sleepSeconds, wavpath, whisperHost, whisperPort)
 import Control.Concurrent (threadDelay)
 import Control.Concurrent.MVar (MVar, tryTakeMVar)
 import Control.Concurrent.STM (STM, TQueue, atomically, readTQueue, tryReadTQueue, writeTQueue)
@@ -167,6 +167,7 @@ listenWithThreshold :: Double -> ListenerMonad String
 listenWithThreshold threshold = do
   listener <- getListenerState
   env <- ask
+
   when (timeOffset listener > fromIntegral (recordingLength env)) (liftIO $ print "max time exceeded")
   when (debug env) (liftIO $ debugPrint listener)
   (voiceActivations, length) <- liftIO $ readSlice (path listener) (timeOffset listener) (segmentDuration env) (audioRate env) (vad listener)
@@ -190,7 +191,7 @@ listenWithThreshold threshold = do
         let se = getStartEnd (voiceStart boundary) (voiceEnd boundary)
             (start, end) = fromMaybe (0.0, 0.0) se -- this default should never happen
         writeBoundedWave (path listener) capfilepath (start - 0.25) end (audioRate env) -- back up a 1/4 second to make sure we don't lose anything
-        transcript <- sendAudio "http://127.0.0.1/" 5000 capfilepath -- TODO get this from configuration
+        transcript <- sendAudio ("http://" ++ whisperHost env ++ "/") (whisperPort env) capfilepath
         when (debug env) (liftIO $ print transcript)
         return transcript
     else do
@@ -255,7 +256,7 @@ say msg =
     startTime <- liftIO getCurrentTime
     listenerState <- get
     config <- ask
-    dur <- liftIO $ sayText msg
+    dur <- liftIO $ sayText (sileroHost config) (sileroPort config) msg
     endTime <- liftIO getCurrentTime
     let offset = timeOffset listenerState + dur + sleepSeconds config -- advance the offset to skip over the time when the computer was talking
     put

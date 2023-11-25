@@ -13,7 +13,7 @@ convertNumber :: Integer -> String
 convertNumber n = T.unpack $ toCardinal english n
 
 removeCommas :: String -> String
-removeCommas s = filter (\x -> x /= ',') s
+removeCommas = filter (/= ',')
 
 type Unit = String
 
