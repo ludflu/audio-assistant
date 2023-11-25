@@ -66,12 +66,11 @@ parseDuration rsp =
   let srsp = eitherDecode rsp
    in fmap duration srsp
 
-sayText :: String -> IO Double
-sayText msg =
+sayText :: String -> Int -> String -> IO Double
+sayText host apiPort msg =
   let substitutedMsg = convertAllNumbers msg
       payload = SpeechRequest {message = substitutedMsg}
-      url = "http://127.0.0.1/talk"
-      apiPort = 5002
+      url = "http://" ++ host ++ "/talk"
    in do
         request' <- parseRequest url
         let request =
