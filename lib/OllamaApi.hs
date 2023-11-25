@@ -95,7 +95,6 @@ writeToMailBox' :: MonadResource m => TQueue String -> String -> m ()
 writeToMailBox' mbox msg =
   liftResourceT $
     liftIO $ do
-      print msg
       atomically $ writeTQueue mbox msg
 
 answerQuestion :: String -> Int -> TQueue String -> String -> IO ()

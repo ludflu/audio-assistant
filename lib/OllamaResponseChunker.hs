@@ -48,10 +48,3 @@ chunker = do
       .| splitOnUnboundedE isPunctuation
       .| mapM_C (liftIO . print . ("Processing chunk: " ++) . show)
   print "done"
-
--- .| jsonChunks '}'
--- .| mapC makeResponseChunk
--- .| filterC isJust
--- .| mapC fromJust
--- .| mapC response
--- .| mapM_C (liftIO . putStrLn . ("Processing chunk: " ++) . show)

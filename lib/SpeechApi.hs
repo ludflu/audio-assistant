@@ -83,7 +83,6 @@ sayText msg =
                 $ request'
 
         rsp <- httpLBS request
-        liftIO $ print $ getResponseBody rsp
         let d = parseDuration $ getResponseBody rsp
          in case d of
               Left err -> liftIO $ print ("Error parsing result from speech API: " ++ err) >> return 0.0
