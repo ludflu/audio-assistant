@@ -5,7 +5,7 @@ app/Main.hs vad-audio:
 
 run:
 	cabal clean
-	cabal run vad-audio -- --recordingLength 1200 --wavpath tmp --ollamHost 192.168.1.200
+	cabal run vad-audio -- --recordingLength 1200 --wavpath tmp --ollamaHost 192.168.1.200 --debug
 
 dep:
 	sudo apt install pulseaudio
