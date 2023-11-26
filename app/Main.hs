@@ -18,6 +18,7 @@ import Data.Time.Clock (UTCTime, getCurrentTime)
 import Database.Persist.Postgresql (ConnectionPool, PostgresConf (PostgresConf, pgConnStr, pgPoolIdleTimeout, pgPoolSize, pgPoolStripes), createPostgresqlPoolWithConf, defaultPostgresConfHooks, withPostgresqlPool, withPostgresqlPoolWithConf)
 import Listener
   ( ListenerMonad,
+    dbPool,
     initialState,
     listen,
     runListenerMonad,
@@ -58,13 +59,13 @@ run config = do
   shouldReset :: MVar FilePath <- newEmptyMVar
   emptyMailbox :: TQueue String <- newTQueueIO
   vad <- Vad.create
-  let pgconfig = PostgresConf {pgConnStr = "host=localhost port=5432 user=postgres password=<PASSWORD> dbname=vad", pgPoolSize = 2, pgPoolIdleTimeout = 10, pgPoolStripes = 1}
+  let pgconfig = PostgresConf {pgConnStr = "host=localhost port=5432 user=postgres password=<PASSWORD> dbname=vad", pgPoolSize = 2, pgPoolIdleTimeout = 10, pgPoolStripes = 1} -- TODO host should come from config
   runStdoutLoggingT $ withPostgresqlPoolWithConf pgconfig defaultPostgresConfHooks $ \pool -> do
     let _config =
-          let dpool = fmap (const pool) (dbHost config)
-           in if localpath config == ""
-                then config {localpath = currentWorkingDirectory, dbPool = dpool}
-                else config
+          -- let dpool = fmap (const pool) (dbHost config)
+          if localpath config == ""
+            then config {localpath = currentWorkingDirectory}
+            else config
         outpath =
           if null $ wavpath config
             then currentWorkingDirectory

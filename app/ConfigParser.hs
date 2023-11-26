@@ -35,6 +35,7 @@ data EnvConfig = EnvConfig
     sileroHost :: String,
     sileroPort :: Int
   }
+  deriving (Show)
 
 parseConfig :: Parser EnvConfig
 parseConfig =

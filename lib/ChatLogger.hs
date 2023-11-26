@@ -19,6 +19,9 @@ module ChatLogger where
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Logger (runStderrLoggingT)
 import Control.Monad.Reader (ReaderT)
+import Control.Monad.State
+  ( MonadState (get, put),
+  )
 import Data.Kind (Type)
 import Data.Time (UTCTime)
 import Data.Time.Clock (UTCTime, diffUTCTime, getCurrentTime, nominalDiffTimeToSeconds)
@@ -34,7 +37,7 @@ import Database.Persist.Postgresql
   )
 import Database.Persist.SqlBackend (SqlBackend)
 import Database.Persist.TH (mkMigrate, mkPersist, persistLowerCase, share, sqlSettings)
-import Listener (ListenerMonad)
+import Listener (ListenerMonad, dbPool)
 
 share
   [mkPersist sqlSettings, mkMigrate "migrateAll"]
@@ -52,8 +55,8 @@ share
 
 addAnswer :: Answer -> ListenerMonad ()
 addAnswer answer = do
-  s <- getState
-  case dbPool s of
+  listener <- get
+  case dbPool listener of
     Just pool -> liftIO $ flip runSqlPersistMPool pool $ do
       insert answer
       return ()
