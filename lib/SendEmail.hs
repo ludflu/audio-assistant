@@ -48,12 +48,17 @@ email msgTo msgBody username password = do
     subject = "Hello!"
     body = msgBody
 
+getUserPwd :: EnvConfig -> Maybe (String, String)
+getUserPwd config = do
+  user <- mailUser config
+  password <- mailPassword config
+  return (user, password)
+
 sendEmailNote :: ListenerMonad ()
 sendEmailNote = do
   note <- liftIO getNote
   config <- ask
-  let user = mailUser config
-  let password = mailPassword config
+  let userPwd = getUserPwd config
   let msg = pack note
-  _ <- liftIO $ email (pack user) msg user password
+  _ <- mapM_ (\(u, p) -> liftIO $ email (pack u) msg u p) userPwd
   return ()

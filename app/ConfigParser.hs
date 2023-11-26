@@ -25,8 +25,8 @@ data EnvConfig = EnvConfig
     sleepSeconds :: Double,
     segmentDuration :: Double,
     debug :: Bool,
-    mailUser :: String,
-    mailPassword :: String,
+    mailUser :: Maybe String,
+    mailPassword :: Maybe String,
     dbHost :: Maybe String,
     ollamaHost :: String,
     ollamaPort :: Int,
@@ -40,12 +40,12 @@ data EnvConfig = EnvConfig
 parseConfig :: Parser EnvConfig
 parseConfig =
   EnvConfig
-    <$> strOption
-      ( long "scriptpath"
-          <> metavar "FILEPATH"
-          <> value ""
-          <> help "the path for the helper scripts that record and emit messages"
-      )
+    <$> ( strOption $
+            long "scriptpath"
+              <> metavar "FILEPATH"
+              <> value ""
+              <> help "the path for the helper scripts that record and emit messages"
+        )
     <*> strOption
       ( long "wavpath"
           <> metavar "FILEPATH"
@@ -99,16 +99,16 @@ parseConfig =
           <> short 'd'
           <> help "Whether to print debug info"
       )
-    <*> strOption
-      ( long "mailUser"
-          <> value ""
-          <> help "the username to connect to gmail with"
-      )
-    <*> strOption
-      ( long "mailPassword"
-          <> value ""
-          <> help "the password to connect to gmail with"
-      )
+    <*> ( optional $
+            strOption $
+              long "mailUser"
+                <> help "the username to connect to gmail with"
+        )
+    <*> ( optional $
+            strOption $
+              long "mailPassword"
+                <> help "the password to connect to gmail with"
+        )
     <*> ( optional $
             strOption $
               long "dbHost"
