@@ -61,3 +61,12 @@ addAnswer answer = do
       insert answer
       return ()
     Nothing -> return ()
+
+addQuery :: Query -> ListenerMonad ()
+addQuery query = do
+  listener <- get
+  case dbPool listener of
+    Just pool -> liftIO $ flip runSqlPersistMPool pool $ do
+      insert query
+      return ()
+    Nothing -> return ()

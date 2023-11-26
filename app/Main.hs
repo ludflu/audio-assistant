@@ -8,6 +8,7 @@
 module Main where
 
 import Actions (findResponseRegex)
+import ChatLogger
 import ConfigParser (EnvConfig (dbHost, localpath, wavpath), parseConfig)
 import Control.Concurrent (forkIO, killThread, threadDelay)
 import Control.Concurrent.MVar (MVar, newEmptyMVar)
@@ -49,6 +50,8 @@ import System.Directory (getCurrentDirectory)
 commandLoop :: ListenerMonad ()
 commandLoop = do
   query <- listen
+  tstmp <- liftIO $ getCurrentTime
+  addQuery $ Query query tstmp
   liftIO $ print query
   response <- findResponseRegex query
   liftIO $ print response
