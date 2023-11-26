@@ -59,6 +59,5 @@ sendEmailNote = do
   note <- liftIO getNote
   config <- ask
   let userPwd = getUserPwd config
-  let msg = pack note
-  _ <- mapM_ (\(u, p) -> liftIO $ email (pack u) msg u p) userPwd
-  return ()
+      msg = pack note
+  mapM_ (\(user, password) -> liftIO $ email (pack user) msg user password) userPwd
