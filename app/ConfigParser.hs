@@ -27,7 +27,7 @@ data EnvConfig = EnvConfig
     debug :: Bool,
     mailUser :: String,
     mailPassword :: String,
-    dbHost :: String,
+    dbHost :: Maybe String,
     ollamaHost :: String,
     ollamaPort :: Int,
     whisperHost :: String,
@@ -108,12 +108,11 @@ parseConfig =
           <> value ""
           <> help "the password to connect to gmail with"
       )
-    <*> strOption
-      ( long "dbHost"
-          <> value "127.0.0.1"
-          <> showDefault
-          <> help "hostname or ip address of the database server"
-      )
+    <*> ( optional $
+            strOption $
+              long "dbHost"
+                <> help "hostname or ip address of the database server"
+        )
     <*> strOption
       ( long "ollamaHost"
           <> value "127.0.0.1"
