@@ -18,6 +18,8 @@ import Data.Time.Clock (UTCTime, getCurrentTime)
 import Database.Persist.Postgresql (ConnectionPool, PostgresConf (PostgresConf, pgConnStr, pgPoolIdleTimeout, pgPoolSize, pgPoolStripes), createPostgresqlPoolWithConf, defaultPostgresConfHooks, withPostgresqlPool, withPostgresqlPoolWithConf)
 import Listener
   ( ListenerMonad,
+    ListenerState,
+    audioReset,
     dbPool,
     initialState,
     listen,
@@ -52,17 +54,26 @@ commandLoop = do
   quit <- shouldQuit
   unless quit commandLoop
 
+runJob :: EnvConfig -> ListenerState -> IO ()
+runJob config startState = do
+  print "starting audio-assistant"
+  recorderThread <- forkIO $ record config (audioReset startState) 0
+  threadDelay 4000000 -- wait 4 seconds for the recording thread to start
+  runListenerMonad commandLoop config startState
+  print "ending program, killing recorder thread"
+  killThread recorderThread
+  run config -- dirty hack because things sometimes crash
+
 run :: EnvConfig -> IO ()
 run config = do
   currentTime <- getCurrentTime
   currentWorkingDirectory <- getCurrentDirectory
-  shouldReset :: MVar FilePath <- newEmptyMVar
   emptyMailbox :: TQueue String <- newTQueueIO
+  shouldAudioReset :: MVar FilePath <- newEmptyMVar
   vad <- Vad.create
   let pgconfig = PostgresConf {pgConnStr = "host=localhost port=5432 user=postgres password=<PASSWORD> dbname=vad", pgPoolSize = 2, pgPoolIdleTimeout = 10, pgPoolStripes = 1} -- TODO host should come from config
   runStdoutLoggingT $ withPostgresqlPoolWithConf pgconfig defaultPostgresConfHooks $ \pool -> do
     let _config =
-          -- let dpool = fmap (const pool) (dbHost config)
           if localpath config == ""
             then config {localpath = currentWorkingDirectory}
             else config
@@ -70,17 +81,8 @@ run config = do
           if null $ wavpath config
             then currentWorkingDirectory
             else wavpath config
-        startState = initialState currentTime vad shouldReset emptyMailbox (outpath ++ "/in0.wav") (Just pool)
-    liftIO $ do
-      print "starting audio-assistant"
-      print currentTime
-      print $ show config
-      recorderThread <- forkIO $ record _config shouldReset 0
-      liftIO $ threadDelay 4000000 -- wait 4 seconds for the recording thread to start
-      runListenerMonad commandLoop _config startState
-      print "ending program, killing recorder thread"
-      killThread recorderThread
-      run config -- dirty hack because things sometimes crash
+        startState = initialState currentTime vad shouldAudioReset emptyMailbox (outpath ++ "/in0.wav") (Just pool)
+    liftIO $ runJob _config startState
 
 main :: IO ()
 main = run =<< execParser opts
