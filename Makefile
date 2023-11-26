@@ -10,7 +10,8 @@ run:
 		--wavpath tmp \
 		--ollamaHost 192.168.1.200 \
 		--mailUser ${GMAIL_USR} \
-		--mailPassword "${GMAIL_PWD}"
+		--mailPassword "${GMAIL_PWD}" \
+		--dbHost localhost
 
 dep:
 	sudo apt install pulseaudio
