@@ -1,5 +1,6 @@
 module ConfigParser where
 
+import Database.Persist.Postgresql (ConnectionPool)
 import Options.Applicative
   ( Parser,
     auto,
@@ -7,6 +8,7 @@ import Options.Applicative
     long,
     metavar,
     option,
+    optional,
     short,
     showDefault,
     strOption,
@@ -25,6 +27,7 @@ data EnvConfig = EnvConfig
     debug :: Bool,
     mailUser :: String,
     mailPassword :: String,
+    dbHost :: String,
     ollamaHost :: String,
     ollamaPort :: Int,
     whisperHost :: String,
@@ -32,7 +35,6 @@ data EnvConfig = EnvConfig
     sileroHost :: String,
     sileroPort :: Int
   }
-  deriving (Show)
 
 parseConfig :: Parser EnvConfig
 parseConfig =
@@ -107,8 +109,15 @@ parseConfig =
           <> help "the password to connect to gmail with"
       )
     <*> strOption
+      ( long "dbHost"
+          <> value "127.0.0.1"
+          <> showDefault
+          <> help "hostname or ip address of the database server"
+      )
+    <*> strOption
       ( long "ollamaHost"
           <> value "127.0.0.1"
+          <> showDefault
           <> help "hostname or ip address of the ollama server"
       )
     <*> option

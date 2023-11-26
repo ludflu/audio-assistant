@@ -61,9 +61,10 @@ run config = do
   let pgconfig = PostgresConf {pgConnStr = "host=localhost port=5432 user=postgres password=<PASSWORD> dbname=vad", pgPoolSize = 2, pgPoolIdleTimeout = 10, pgPoolStripes = 1}
   runStdoutLoggingT $ withPostgresqlPoolWithConf pgconfig defaultPostgresConfHooks $ \pool -> do
     let _config =
-          if localpath config == ""
-            then config {localpath = currentWorkingDirectory}
-            else config
+          let dpool = fmap (const pool) (dbHost config)
+           in if localpath config == ""
+                then config {localpath = currentWorkingDirectory, dbPool = dpool}
+                else config
         outpath =
           if null $ wavpath config
             then currentWorkingDirectory

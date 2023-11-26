@@ -32,8 +32,9 @@ import Database.Persist.Postgresql
     runSqlPersistMPool,
     withPostgresqlPool,
   )
-import Database.Persist.SqlBackend
+import Database.Persist.SqlBackend (SqlBackend)
 import Database.Persist.TH (mkMigrate, mkPersist, persistLowerCase, share, sqlSettings)
+import Listener (ListenerMonad)
 
 share
   [mkPersist sqlSettings, mkMigrate "migrateAll"]
@@ -49,10 +50,11 @@ share
     deriving Show
 |]
 
-type Bla record = forall record (m :: Type -> Type). (MonadIO m, PersistRecordBackend record SqlBackend, SafeToInsert record) => record -> ReaderT SqlBackend m (Key record)
-
-addAnswer :: Bla Answer
-addAnswer answer = insert answer
-
-addQuery :: Bla Query
-addQuery query = insert Query
+addAnswer :: Answer -> ListenerMonad ()
+addAnswer answer = do
+  s <- getState
+  case dbPool s of
+    Just pool -> liftIO $ flip runSqlPersistMPool pool $ do
+      insert answer
+      return ()
+    Nothing -> return ()

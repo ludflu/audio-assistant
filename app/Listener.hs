@@ -1,3 +1,4 @@
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE InstanceSigs #-}
@@ -6,7 +7,6 @@
 
 module Listener where
 
-import ChatLogger (Query (Query))
 import ConfigParser (EnvConfig (recordingLength, sileroHost, sileroPort), activationThreshold, audioRate, debug, localpath, segmentDuration, sleepSeconds, wavpath, whisperHost, whisperPort)
 import Control.Concurrent (threadDelay)
 import Control.Concurrent.MVar (MVar, tryTakeMVar)
@@ -84,15 +84,6 @@ initialState currentTime vad wasAudioReset mailbox initialPath pool =
       mailbox = mailbox,
       dbPool = pool
     }
-
-rundb :: Query -> ListenerMonad ()
-rundb q = do
-  s <- get
-  case dbPool s of
-    Just pool -> liftIO $ flip runSqlPersistMPool pool $ do
-      insert q
-      return ()
-    Nothing -> return ()
 
 getStartEnd :: Maybe Double -> Maybe Double -> Maybe (Double, Double)
 getStartEnd start end = do
