@@ -1,3 +1,4 @@
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -7,7 +8,7 @@
 module Main where
 
 import Actions (findResponseRegex)
-import ConfigParser (EnvConfig (localpath, wavpath), parseConfig)
+import ConfigParser (EnvConfig (dbHost, localpath, wavpath), parseConfig)
 import Control.Concurrent (forkIO, killThread, threadDelay)
 import Control.Concurrent.MVar (MVar, newEmptyMVar)
 import Control.Concurrent.STM (STM, TQueue, atomically, newTQueueIO, readTVar)
@@ -71,18 +72,24 @@ run config = do
   emptyMailbox :: TQueue String <- newTQueueIO
   shouldAudioReset :: MVar FilePath <- newEmptyMVar
   vad <- Vad.create
-  let pgconfig = PostgresConf {pgConnStr = "host=localhost port=5432 user=postgres password=<PASSWORD> dbname=vad", pgPoolSize = 2, pgPoolIdleTimeout = 10, pgPoolStripes = 1} -- TODO host should come from config
-  runStdoutLoggingT $ withPostgresqlPoolWithConf pgconfig defaultPostgresConfHooks $ \pool -> do
-    let _config =
-          if localpath config == ""
-            then config {localpath = currentWorkingDirectory}
-            else config
-        outpath =
-          if null $ wavpath config
-            then currentWorkingDirectory
-            else wavpath config
-        startState = initialState currentTime vad shouldAudioReset emptyMailbox (outpath ++ "/in0.wav") (Just pool)
-    liftIO $ runJob _config startState
+  let _config =
+        if localpath config == ""
+          then config {localpath = currentWorkingDirectory}
+          else config
+      outpath =
+        if null $ wavpath config
+          then currentWorkingDirectory
+          else wavpath config
+      startState' = initialState currentTime vad shouldAudioReset emptyMailbox (outpath ++ "/in0.wav")
+   in case dbHost config of
+        Just host -> do
+          let pgconfig = PostgresConf {pgConnStr = "host=localhost port=5432 user=postgres password=<PASSWORD> dbname=vad", pgPoolSize = 2, pgPoolIdleTimeout = 10, pgPoolStripes = 1}
+          runStdoutLoggingT $ withPostgresqlPoolWithConf pgconfig defaultPostgresConfHooks $ \pool -> do
+            let startState = startState' (Just pool)
+             in liftIO $ runJob _config startState
+        Nothing -> do
+          let startState = startState' Nothing
+           in liftIO $ runJob _config startState
 
 main :: IO ()
 main = run =<< execParser opts
