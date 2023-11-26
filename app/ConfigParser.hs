@@ -27,6 +27,7 @@ data EnvConfig = EnvConfig
     debug :: Bool,
     mailUser :: Maybe String,
     mailPassword :: Maybe String,
+    mailServer :: String,
     dbHost :: Maybe String,
     ollamaHost :: String,
     ollamaPort :: Int,
@@ -109,6 +110,12 @@ parseConfig =
               long "mailPassword"
                 <> help "the password to connect to gmail with"
         )
+    <*> strOption
+      ( long "mailServer"
+          <> value "smtp.gmail.com"
+          <> showDefault
+          <> help "smtp server for sending email"
+      )
     <*> ( optional $
             strOption $
               long "dbHost"

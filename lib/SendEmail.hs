@@ -2,7 +2,7 @@
 
 module SendEmail where
 
-import ConfigParser (EnvConfig (mailUser), mailPassword)
+import ConfigParser (EnvConfig (mailUser), mailPassword, mailServer)
 import Control.Monad (when)
 import Control.Monad.Reader (MonadReader, ReaderT, ask, liftIO, runReaderT)
 import Data.Text (Text, pack)
@@ -23,10 +23,10 @@ import Network.Mail.Mime
   )
 import RecordNote (getNote, readNote)
 
-sendGmail :: Mail -> String -> String -> IO ()
-sendGmail msg username password = do
+sendGmail :: String -> Mail -> String -> String -> IO ()
+sendGmail smtpServer msg username password = do
   rendered <- renderMail' msg
-  doSMTPSSL "smtp.gmail.com" $ \connection -> do
+  doSMTPSSL smtpServer $ \connection -> do
     succeeded <-
       authenticate
         LOGIN
@@ -38,10 +38,10 @@ sendGmail msg username password = do
         msg
         connection
 
-email :: Text -> Text -> String -> String -> IO ()
-email msgTo msgBody username password = do
+email :: Text -> Text -> String -> String -> String -> IO ()
+email msgTo msgBody server username password = do
   let mail = simpleMail' to from subject (L.fromStrict body)
-  sendGmail mail username password
+  sendGmail server mail username password
   where
     to = Address Nothing msgTo
     from = Address Nothing (pack username)
@@ -60,4 +60,4 @@ sendEmailNote = do
   config <- ask
   let userPwd = getUserPwd config
       msg = pack note
-  mapM_ (\(user, password) -> liftIO $ email (pack user) msg user password) userPwd
+  mapM_ (\(user, password) -> liftIO $ email (pack user) msg (mailServer config) user password) userPwd
