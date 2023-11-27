@@ -5,7 +5,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module OllamaApi (answerQuestion, getAnswer, makeResponseChunk, jsonChunks) where
+module OllamaApi (answerQuestion, getAnswer, makeResponseChunk, jsonChunks, chunker) where
 
 import Conduit (ConduitM, ConduitT, MonadResource, awaitForever, concatC, concatMapAccumC, concatMapC, concatMapCE, filterC, leftover, mapAccumWhileC, mapC, mapCE, mapM_C, runConduit, runConduitRes, sinkLazy, sourceLazy, yield, (.|))
 import Control.Concurrent (forkIO)
@@ -104,6 +104,15 @@ answerQuestion url port mailbox question = do
   forkIO $ answerQuestion' url port mailbox question
   return ()
 
+chunker :: Monad m => (String -> m ()) -> ConduitT B.ByteString c m ()
+chunker chunkAction =
+  jsonChunks '}'
+    .| mapC makeResponseChunk
+    .| filterC isJust
+    .| mapC (getAnswer . fromJust)
+    .| splitOnUnboundedE isPunct -- TODO can we split on more than one character so we don't split decimal points?
+    .| mapM_C chunkAction
+
 answerQuestion' :: String -> Int -> TQueue String -> String -> IO ()
 answerQuestion' url apiPort mailbox question =
   let payload = OllamaRequest {model = "llama2", prompt = question, stream = True}
@@ -112,15 +121,10 @@ answerQuestion' url apiPort mailbox question =
         request' <- parseRequest url
         let request'' = request' {method = "POST", requestBody = body, port = apiPort}
             request = setRequestResponseTimeout (responseTimeoutMicro (500 * 1000000)) request''
+            chunkAction = writeToMailBox' mailbox
         manager <- newManager tlsManagerSettings
         runResourceT $
           do
             rsp <- http request manager
             runConduit $
-              responseBody rsp
-                .| jsonChunks '}'
-                .| mapC makeResponseChunk
-                .| filterC isJust
-                .| mapC (getAnswer . fromJust)
-                .| splitOnUnboundedE isPunct
-                .| mapM_C (writeToMailBox' mailbox)
+              responseBody rsp .| chunker chunkAction

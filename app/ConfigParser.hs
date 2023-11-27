@@ -1,5 +1,6 @@
 module ConfigParser where
 
+import Database.Persist.Postgresql (ConnectionPool)
 import Options.Applicative
   ( Parser,
     auto,
@@ -7,6 +8,7 @@ import Options.Applicative
     long,
     metavar,
     option,
+    optional,
     short,
     showDefault,
     strOption,
@@ -23,8 +25,10 @@ data EnvConfig = EnvConfig
     sleepSeconds :: Double,
     segmentDuration :: Double,
     debug :: Bool,
-    mailUser :: String,
-    mailPassword :: String,
+    mailUser :: Maybe String,
+    mailPassword :: Maybe String,
+    mailServer :: String,
+    dbHost :: Maybe String,
     ollamaHost :: String,
     ollamaPort :: Int,
     whisperHost :: String,
@@ -45,7 +49,7 @@ parseConfig =
       )
     <*> strOption
       ( long "wavpath"
-          <> metavar "FILEPATH"
+          <> metavar "WAVPATH"
           <> value ""
           <> help "the path to write temporary audio splices"
       )
@@ -96,19 +100,31 @@ parseConfig =
           <> short 'd'
           <> help "Whether to print debug info"
       )
-    <*> strOption
-      ( long "mailUser"
-          <> value ""
-          <> help "the username to connect to gmail with"
+    <*> optional
+      ( strOption $
+          long "mailUser"
+            <> help "the username to connect to gmail with"
+      )
+    <*> optional
+      ( strOption $
+          long "mailPassword"
+            <> help "the password to connect to gmail with"
       )
     <*> strOption
-      ( long "mailPassword"
-          <> value ""
-          <> help "the password to connect to gmail with"
+      ( long "mailServer"
+          <> value "smtp.gmail.com"
+          <> showDefault
+          <> help "smtp server for sending email"
+      )
+    <*> optional
+      ( strOption $
+          long "dbHost"
+            <> help "hostname or ip address of the database server"
       )
     <*> strOption
       ( long "ollamaHost"
           <> value "127.0.0.1"
+          <> showDefault
           <> help "hostname or ip address of the ollama server"
       )
     <*> option

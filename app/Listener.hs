@@ -1,3 +1,4 @@
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE InstanceSigs #-}
@@ -27,6 +28,8 @@ import Data.Char (toLower)
 import Data.Maybe (fromMaybe, isJust, isNothing)
 import qualified Data.Text as T
 import Data.Time.Clock (UTCTime, diffUTCTime, getCurrentTime, nominalDiffTimeToSeconds)
+import Database.Persist (PersistStoreWrite (insert))
+import Database.Persist.Postgresql (ConnectionPool, PersistStoreWrite (insert), SqlPersistM, rawSql, runSqlPersistMPool, runSqlPool, withPostgresqlPool)
 import Numeric (showFFloat)
 import SendAudio (sendAudio)
 import Sound.VAD.WebRTC as Vad
@@ -47,7 +50,8 @@ data ListenerState = ListenerState
     count :: Int,
     quit :: Bool,
     audioReset :: MVar FilePath,
-    mailbox :: TQueue String
+    mailbox :: TQueue String,
+    dbPool :: Maybe ConnectionPool
   }
 
 newtype ListenerMonad a = ListenerMonad (ReaderT EnvConfig (StateT ListenerState IO) a)
@@ -65,8 +69,8 @@ instance MonadState ListenerState ListenerMonad where
   put :: ListenerState -> ListenerMonad ()
   put = ListenerMonad . put
 
-initialState :: Data.Time.Clock.UTCTime -> VAD RealWorld -> MVar FilePath -> TQueue String -> FilePath -> ListenerState
-initialState currentTime vad wasAudioReset mailbox initialPath =
+initialState :: Data.Time.Clock.UTCTime -> VAD RealWorld -> MVar FilePath -> TQueue String -> FilePath -> Maybe ConnectionPool -> ListenerState
+initialState currentTime vad wasAudioReset mailbox initialPath pool =
   ListenerState
     { startTime = currentTime,
       path = initialPath,
@@ -77,7 +81,8 @@ initialState currentTime vad wasAudioReset mailbox initialPath =
       count = 0,
       quit = False,
       audioReset = wasAudioReset,
-      mailbox = mailbox
+      mailbox = mailbox,
+      dbPool = pool
     }
 
 getStartEnd :: Maybe Double -> Maybe Double -> Maybe (Double, Double)

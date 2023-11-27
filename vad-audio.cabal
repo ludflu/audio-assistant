@@ -42,8 +42,8 @@ executable vad-audio
                    SendEmail,
                    VoiceDetectionSliceReader,
                    OllamaApi,
-                   OllamaResponseChunker,
                    Reminders,
+                   ChatLogger,
                    SpokenNumbers
 
     build-depends:    base,
@@ -85,7 +85,10 @@ executable vad-audio
                       retry,
                       safe-exceptions,
                       directory,
-                      monad-loops
+                      monad-loops,
+                      persistent,
+                      persistent-postgresql,
+                      monad-logger                    
     hs-source-dirs:   app, lib
     default-language: Haskell2010
     default-extensions:  QuasiQuotes, FlexibleContexts
@@ -102,7 +105,6 @@ test-suite vad-tests
       ConfigParser,
       SendAudio,
       VoiceDetectionSliceReader,
-      OllamaResponseChunker,
       OllamaApi,
       SpeechApi,
       SpokenNumbers
@@ -148,4 +150,7 @@ test-suite vad-tests
       retry,
       safe-exceptions,
       monad-loops,
+      persistent-postgresql,
+      persistent,
+      monad-logger
 

@@ -31,4 +31,4 @@ convertNString nstr =
         Nothing -> nstr
 
 convertAllNumbers :: String -> String
-convertAllNumbers = gsub [re|([0-9,]+)|] (\x -> convertNString x)
+convertAllNumbers = gsub [re|([0-9,]+)|] convertNString

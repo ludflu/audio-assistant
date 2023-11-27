@@ -1,20 +1,28 @@
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Main where
 
 import Actions (findResponseRegex)
-import ConfigParser (EnvConfig (localpath, wavpath), parseConfig)
+import ChatLogger
+import ConfigParser (EnvConfig (dbHost, localpath, wavpath), parseConfig)
 import Control.Concurrent (forkIO, killThread, threadDelay)
 import Control.Concurrent.MVar (MVar, newEmptyMVar)
 import Control.Concurrent.STM (STM, TQueue, atomically, newTQueueIO, readTVar)
 import Control.Monad (unless)
+import Control.Monad.Logger (runStdoutLoggingT)
 import Control.Monad.State (liftIO)
 import Data.Time.Clock (UTCTime, getCurrentTime)
+import Database.Persist.Postgresql (ConnectionPool, PostgresConf (PostgresConf, pgConnStr, pgPoolIdleTimeout, pgPoolSize, pgPoolStripes), createPostgresqlPoolWithConf, defaultPostgresConfHooks, withPostgresqlPool, withPostgresqlPoolWithConf)
 import Listener
   ( ListenerMonad,
+    ListenerState,
+    audioReset,
+    dbPool,
     initialState,
     listen,
     runListenerMonad,
@@ -42,23 +50,30 @@ import System.Directory (getCurrentDirectory)
 commandLoop :: ListenerMonad ()
 commandLoop = do
   query <- listen
+  tstmp <- liftIO getCurrentTime
+  addQuery $ Query query tstmp
   liftIO $ print query
   response <- findResponseRegex query
   liftIO $ print response
   quit <- shouldQuit
   unless quit commandLoop
 
+runJob :: EnvConfig -> ListenerState -> IO ()
+runJob config startState = do
+  print "starting audio-assistant"
+  recorderThread <- forkIO $ record config (audioReset startState) 0
+  threadDelay 4000000 -- wait 4 seconds for the recording thread to start
+  runListenerMonad commandLoop config startState
+  print "ending program, killing recorder thread"
+  killThread recorderThread
+  run config -- dirty hack because things sometimes crash
+
 run :: EnvConfig -> IO ()
 run config = do
   currentTime <- getCurrentTime
   currentWorkingDirectory <- getCurrentDirectory
-  shouldReset :: MVar FilePath <- newEmptyMVar
-
   emptyMailbox :: TQueue String <- newTQueueIO
-
-  print "vad-listener start"
-  print currentTime
-  print $ show config
+  shouldAudioReset :: MVar FilePath <- newEmptyMVar
   vad <- Vad.create
   let _config =
         if localpath config == ""
@@ -68,13 +83,16 @@ run config = do
         if null $ wavpath config
           then currentWorkingDirectory
           else wavpath config
-      startState = initialState currentTime vad shouldReset emptyMailbox (outpath ++ "/in0.wav")
-  recorderThread <- forkIO $ record _config shouldReset 0
-  threadDelay 4000000 -- wait 4 seconds for the recording thread to start
-  runListenerMonad commandLoop _config startState
-  print "ending program, killing recorder thread"
-  killThread recorderThread
-  run config -- dirty hack because things sometimes crash
+      startState' = initialState currentTime vad shouldAudioReset emptyMailbox (outpath ++ "/in0.wav")
+   in case dbHost config of
+        Just host -> do
+          let pgconfig = PostgresConf {pgConnStr = "host=localhost port=5432 user=postgres password=<PASSWORD> dbname=vad", pgPoolSize = 2, pgPoolIdleTimeout = 10, pgPoolStripes = 1}
+          runStdoutLoggingT $ withPostgresqlPoolWithConf pgconfig defaultPostgresConfHooks $ \pool -> do
+            let startState = startState' (Just pool)
+             in liftIO $ runJob _config startState
+        Nothing -> do
+          let startState = startState' Nothing
+           in liftIO $ runJob _config startState
 
 main :: IO ()
 main = run =<< execParser opts
