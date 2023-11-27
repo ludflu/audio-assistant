@@ -94,17 +94,24 @@ isPunct c =
 makeResponseChunk :: B.ByteString -> Maybe OllamaResponse
 makeResponseChunk = decode . BLS.fromStrict
 
-writeToMailBox' :: MonadResource m => TQueue String -> Maybe ConnectionPool -> String -> m ()
-writeToMailBox' mbox dbPool msg =
+writeToMailBox' :: MonadResource m => TQueue String -> Maybe QueryId -> Maybe ConnectionPool -> String -> m ()
+writeToMailBox' mbox queryId dbPool msg =
   liftResourceT $
     liftIO $ do
+      mapM_ (\qid -> addAnswer dbPool $ Answer qid msg) queryId
       atomically $ writeTQueue mbox msg
+
+getDbStuff :: Maybe QueryId -> Maybe ConnectionPool -> Maybe (QueryId, ConnectionPool)
+getDbStuff q d = do
+  q' <- q
+  d' <- d
+  return (q', d')
 
 answerQuestion :: String -> Int -> TQueue String -> String -> Maybe QueryId -> Maybe ConnectionPool -> IO ()
 answerQuestion url port mailbox question queryId dbPool = do
   print "sending to api:\n"
   print question
-  forkIO $ answerQuestion' url port mailbox dbPool question
+  forkIO $ answerQuestion' url port mailbox queryId dbPool question
   return ()
 
 chunker :: Monad m => (String -> m ()) -> ConduitT B.ByteString c m ()
@@ -116,15 +123,15 @@ chunker chunkAction =
     .| splitOnUnboundedE isPunct -- TODO can we split on more than one character so we don't split decimal points?
     .| mapM_C chunkAction
 
-answerQuestion' :: String -> Int -> TQueue String -> Maybe ConnectionPool -> String -> IO ()
-answerQuestion' url apiPort mailbox dbPool question =
+answerQuestion' :: String -> Int -> TQueue String -> Maybe QueryId -> Maybe ConnectionPool -> String -> IO ()
+answerQuestion' url apiPort mailbox qid dbPool question =
   let payload = OllamaRequest {model = "llama2", prompt = question, stream = True}
       body = RequestBodyLBS $ encode payload
    in do
         request' <- parseRequest url
         let request'' = request' {method = "POST", requestBody = body, port = apiPort}
             request = setRequestResponseTimeout (responseTimeoutMicro (500 * 1000000)) request''
-            chunkAction = writeToMailBox' mailbox dbPool
+            chunkAction = writeToMailBox' mailbox qid dbPool
         manager <- newManager tlsManagerSettings
         runResourceT $
           do

@@ -47,7 +47,6 @@ share
     deriving Show
   Answer
     queryId QueryId
-    seq Int
     answer String
     deriving Show
 |]
