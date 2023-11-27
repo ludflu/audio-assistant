@@ -42,7 +42,6 @@ executable vad-audio
                    SendEmail,
                    VoiceDetectionSliceReader,
                    OllamaApi,
-                   OllamaResponseChunker,
                    Reminders,
                    ChatLogger,
                    SpokenNumbers
@@ -106,7 +105,6 @@ test-suite vad-tests
       ConfigParser,
       SendAudio,
       VoiceDetectionSliceReader,
-      OllamaResponseChunker,
       OllamaApi,
       SpeechApi,
       SpokenNumbers
