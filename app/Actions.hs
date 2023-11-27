@@ -7,6 +7,7 @@
 
 module Actions where
 
+import ChatLogger
 import ConfigParser (EnvConfig (mailPassword, mailUser, ollamaHost, ollamaPort))
 import Control.Concurrent.STM (STM, TQueue, atomically, readTVar, writeTVar)
 import Control.Monad.Reader (MonadReader, ReaderT, ask, liftIO, runReaderT)
@@ -33,7 +34,7 @@ import Data.Time.LocalTime.TimeZone.Olson ()
 import Data.Time.LocalTime.TimeZone.Series
 import Data.Traversable
 import Guess (guessingGame)
-import Listener (ListenerMonad, ListenerState (mailbox), quitNow, say, speak, writeToMailBox)
+import Listener (ListenerMonad, ListenerState (dbPool, mailbox), quitNow, say, speak, writeToMailBox)
 import MatchHelper (dropNonLetters, fuzzyMatch, isMatch, lowerCase)
 import OllamaApi (answerQuestion)
 import RecordNote (readNote, recordNote)
@@ -53,8 +54,12 @@ acknowledgeAndAnswer :: TQueue String -> [String] -> ListenerMonad ()
 acknowledgeAndAnswer mailbox question = do
   _ <- say "Thinking...  "
   env <- ask
+  st <- get
   let apiUrl = "http://" ++ ollamaHost env ++ "/api/generate"
-  liftIO $ OllamaApi.answerQuestion apiUrl (ollamaPort env) mailbox (head question)
+      q = head question
+  tstmp <- liftIO getCurrentTime
+  qid <- liftIO $ addQuery (dbPool st) $ Query q tstmp
+  liftIO $ OllamaApi.answerQuestion apiUrl (ollamaPort env) mailbox q qid (dbPool st)
   return ()
 
 regexResponses :: TQueue String -> M.Map Regex ListenerAction

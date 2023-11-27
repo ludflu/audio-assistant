@@ -50,8 +50,8 @@ import System.Directory (getCurrentDirectory)
 commandLoop :: ListenerMonad ()
 commandLoop = do
   query <- listen
-  tstmp <- liftIO getCurrentTime
-  addQuery $ Query query tstmp
+  -- tstmp <- liftIO getCurrentTime
+  -- addQuery $ Query query tstmp
   liftIO $ print query
   response <- findResponseRegex query
   liftIO $ print response

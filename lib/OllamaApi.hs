@@ -7,6 +7,7 @@
 
 module OllamaApi (answerQuestion, getAnswer, makeResponseChunk, jsonChunks, chunker) where
 
+import ChatLogger
 import Conduit (ConduitM, ConduitT, MonadResource, awaitForever, concatC, concatMapAccumC, concatMapC, concatMapCE, filterC, leftover, mapAccumWhileC, mapC, mapCE, mapM_C, runConduit, runConduitRes, sinkLazy, sourceLazy, yield, (.|))
 import Control.Concurrent (forkIO)
 import Control.Concurrent.STM (STM, TQueue, atomically, readTVar, writeTQueue, writeTVar)
@@ -29,7 +30,9 @@ import Data.Maybe (fromJust, isJust, mapMaybe)
 import qualified Data.Text as T
 import Data.Text.Array (run)
 import qualified Data.Text.Encoding as TE
+import Data.Time (getCurrentTime)
 import Data.Word (Word8)
+import Database.Persist.Postgresql (ConnectionPool)
 import GHC.Generics (Generic)
 import Listener
 import Network.HTTP.Conduit
@@ -91,17 +94,17 @@ isPunct c =
 makeResponseChunk :: B.ByteString -> Maybe OllamaResponse
 makeResponseChunk = decode . BLS.fromStrict
 
-writeToMailBox' :: MonadResource m => TQueue String -> String -> m ()
-writeToMailBox' mbox msg =
+writeToMailBox' :: MonadResource m => TQueue String -> Maybe ConnectionPool -> String -> m ()
+writeToMailBox' mbox dbPool msg =
   liftResourceT $
     liftIO $ do
       atomically $ writeTQueue mbox msg
 
-answerQuestion :: String -> Int -> TQueue String -> String -> IO ()
-answerQuestion url port mailbox question = do
+answerQuestion :: String -> Int -> TQueue String -> String -> Maybe QueryId -> Maybe ConnectionPool -> IO ()
+answerQuestion url port mailbox question queryId dbPool = do
   print "sending to api:\n"
   print question
-  forkIO $ answerQuestion' url port mailbox question
+  forkIO $ answerQuestion' url port mailbox dbPool question
   return ()
 
 chunker :: Monad m => (String -> m ()) -> ConduitT B.ByteString c m ()
@@ -113,15 +116,15 @@ chunker chunkAction =
     .| splitOnUnboundedE isPunct -- TODO can we split on more than one character so we don't split decimal points?
     .| mapM_C chunkAction
 
-answerQuestion' :: String -> Int -> TQueue String -> String -> IO ()
-answerQuestion' url apiPort mailbox question =
+answerQuestion' :: String -> Int -> TQueue String -> Maybe ConnectionPool -> String -> IO ()
+answerQuestion' url apiPort mailbox dbPool question =
   let payload = OllamaRequest {model = "llama2", prompt = question, stream = True}
       body = RequestBodyLBS $ encode payload
    in do
         request' <- parseRequest url
         let request'' = request' {method = "POST", requestBody = body, port = apiPort}
             request = setRequestResponseTimeout (responseTimeoutMicro (500 * 1000000)) request''
-            chunkAction = writeToMailBox' mailbox
+            chunkAction = writeToMailBox' mailbox dbPool
         manager <- newManager tlsManagerSettings
         runResourceT $
           do
