@@ -110,7 +110,7 @@ chunker chunkAction =
     .| mapC makeResponseChunk
     .| filterC isJust
     .| mapC (getAnswer . fromJust)
-    .| splitOnUnboundedE isPunct
+    .| splitOnUnboundedE isPunct -- TODO can we split on more than one character so we don't split decimal points?
     .| mapM_C chunkAction
 
 answerQuestion' :: String -> Int -> TQueue String -> String -> IO ()

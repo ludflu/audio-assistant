@@ -41,15 +41,15 @@ data EnvConfig = EnvConfig
 parseConfig :: Parser EnvConfig
 parseConfig =
   EnvConfig
-    <$> ( strOption $
-            long "scriptpath"
-              <> metavar "FILEPATH"
-              <> value ""
-              <> help "the path for the helper scripts that record and emit messages"
-        )
+    <$> strOption
+      ( long "scriptpath"
+          <> metavar "FILEPATH"
+          <> value ""
+          <> help "the path for the helper scripts that record and emit messages"
+      )
     <*> strOption
       ( long "wavpath"
-          <> metavar "FILEPATH"
+          <> metavar "WAVPATH"
           <> value ""
           <> help "the path to write temporary audio splices"
       )
@@ -100,27 +100,27 @@ parseConfig =
           <> short 'd'
           <> help "Whether to print debug info"
       )
-    <*> ( optional $
-            strOption $
-              long "mailUser"
-                <> help "the username to connect to gmail with"
-        )
-    <*> ( optional $
-            strOption $
-              long "mailPassword"
-                <> help "the password to connect to gmail with"
-        )
+    <*> optional
+      ( strOption $
+          long "mailUser"
+            <> help "the username to connect to gmail with"
+      )
+    <*> optional
+      ( strOption $
+          long "mailPassword"
+            <> help "the password to connect to gmail with"
+      )
     <*> strOption
       ( long "mailServer"
           <> value "smtp.gmail.com"
           <> showDefault
           <> help "smtp server for sending email"
       )
-    <*> ( optional $
-            strOption $
-              long "dbHost"
-                <> help "hostname or ip address of the database server"
-        )
+    <*> optional
+      ( strOption $
+          long "dbHost"
+            <> help "hostname or ip address of the database server"
+      )
     <*> strOption
       ( long "ollamaHost"
           <> value "127.0.0.1"
