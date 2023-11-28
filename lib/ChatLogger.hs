@@ -19,13 +19,13 @@ module ChatLogger where
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Logger (runStderrLoggingT)
 import Control.Monad.Reader (ReaderT)
-import Control.Monad.State
-  ( MonadState (get, put),
-  )
+import qualified Control.Monad.State as ST
 import Data.Kind (Type)
+import Data.Sequence.Internal.Sorting (Queue (Q))
 import Data.Time (UTCTime)
 import Data.Time.Clock (UTCTime, diffUTCTime, getCurrentTime, nominalDiffTimeToSeconds)
-import Database.Persist (PersistEntity (Key, PersistEntityBackend), PersistStoreWrite (insert), SafeToInsert)
+import Database.Persist (PersistEntity (Key, PersistEntityBackend), PersistStoreRead (get), PersistStoreWrite (insert), SafeToInsert)
+
 import Database.Persist.Postgresql
   ( BackendKey (SqlBackendKey),
     ConnectionPool,
@@ -48,25 +48,20 @@ share
     deriving Show
   Answer
     queryId QueryId
-    seq Int
     answer String
     deriving Show
 |]
 
-addAnswer :: Answer -> ListenerMonad ()
-addAnswer answer = do
-  listener <- get
-  case dbPool listener of
-    Just pool -> liftIO $ flip runSqlPersistMPool pool $ do
-      insert answer
-      return ()
-    Nothing -> return ()
+runMigrations :: Maybe ConnectionPool -> IO ()
+runMigrations = mapM_ (runSqlPersistMPool (runMigration migrateAll))
 
-addQuery :: Query -> ListenerMonad ()
-addQuery query = do
-  listener <- get
-  case dbPool listener of
+addAnswer :: Maybe ConnectionPool -> Answer -> IO ()
+addAnswer dbPool answer = mapM_ (runSqlPersistMPool (insert answer)) dbPool
+
+addQuery :: Maybe ConnectionPool -> Query -> IO (Maybe QueryId)
+addQuery dbPool query = do
+  case dbPool of
     Just pool -> liftIO $ flip runSqlPersistMPool pool $ do
-      insert query
-      return ()
-    Nothing -> return ()
+      qid <- insert query
+      return $ Just qid
+    Nothing -> return Nothing

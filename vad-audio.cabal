@@ -107,7 +107,9 @@ test-suite vad-tests
       VoiceDetectionSliceReader,
       OllamaApi,
       SpeechApi,
-      SpokenNumbers
+      SpokenNumbers,
+      ChatLogger ,
+      ConduitTests
   build-depends:
       base >= 4.7 && < 5,
       bytestring,
