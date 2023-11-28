@@ -89,7 +89,9 @@ run config = do
           let pgconfig = PostgresConf {pgConnStr = "host=localhost port=5432 user=postgres password=<PASSWORD> dbname=vad", pgPoolSize = 2, pgPoolIdleTimeout = 10, pgPoolStripes = 1}
           runStdoutLoggingT $ withPostgresqlPoolWithConf pgconfig defaultPostgresConfHooks $ \pool -> do
             let startState = startState' (Just pool)
-             in liftIO $ runJob _config startState
+             in liftIO $ do
+                  runMigrations (Just pool)
+                  runJob _config startState
         Nothing -> do
           let startState = startState' Nothing
            in liftIO $ runJob _config startState
