@@ -50,8 +50,6 @@ import System.Directory (getCurrentDirectory)
 commandLoop :: ListenerMonad ()
 commandLoop = do
   query <- listen
-  -- tstmp <- liftIO getCurrentTime
-  -- addQuery $ Query query tstmp
   liftIO $ print query
   response <- findResponseRegex query
   liftIO $ print response
@@ -92,6 +90,7 @@ run config = do
              in liftIO $ do
                   runMigrations (Just pool)
                   runJob _config startState
+
         Nothing -> do
           let startState = startState' Nothing
            in liftIO $ runJob _config startState
