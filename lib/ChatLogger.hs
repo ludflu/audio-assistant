@@ -51,13 +51,11 @@ share
     deriving Show
 |]
 
+runMigrations :: Maybe ConnectionPool -> IO ()
+runMigrations = mapM_ (runSqlPersistMPool (runMigration migrateAll))
+
 addAnswer :: Maybe ConnectionPool -> Answer -> IO ()
-addAnswer dbPool answer = do
-  case dbPool of
-    Just pool -> liftIO $ flip runSqlPersistMPool pool $ do
-      insert answer
-      return ()
-    Nothing -> return ()
+addAnswer dbPool answer = mapM_ (runSqlPersistMPool (insert answer)) dbPool
 
 addQuery :: Maybe ConnectionPool -> Query -> IO (Maybe QueryId)
 addQuery dbPool query = do
