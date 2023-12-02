@@ -8,6 +8,7 @@
 module OllamaApi (answerQuestion, getAnswer, makeResponseChunk, jsonChunks, chunker) where
 
 import ChatLogger
+import ChatLoggerSchema
 import Conduit (ConduitM, ConduitT, MonadResource, awaitForever, concatC, concatMapAccumC, concatMapC, concatMapCE, filterC, leftover, mapAccumWhileC, mapC, mapCE, mapM_C, runConduit, runConduitRes, sinkLazy, sourceLazy, yield, (.|))
 import Control.Concurrent (forkIO)
 import Control.Concurrent.STM (STM, TQueue, atomically, readTVar, writeTQueue, writeTVar)
@@ -68,8 +69,8 @@ instance ToJSON OllamaRequest
 
 instance FromJSON OllamaResponse
 
-getAnswer :: OllamaResponse -> String
-getAnswer = response
+extractAnswer :: OllamaResponse -> String
+extractAnswer = response
 
 parseAnswer :: BLS.ByteString -> Maybe String
 parseAnswer llamaRsp =
@@ -119,7 +120,7 @@ chunker chunkAction =
   jsonChunks '}'
     .| mapC makeResponseChunk
     .| filterC isJust
-    .| mapC (getAnswer . fromJust)
+    .| mapC (extractAnswer . fromJust)
     .| splitOnUnboundedE isPunct -- TODO can we split on more than one character so we don't split decimal points?
     .| mapM_C chunkAction
 
