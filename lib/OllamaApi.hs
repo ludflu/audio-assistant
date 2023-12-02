@@ -5,10 +5,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module OllamaApi (answerQuestion, getAnswer, makeResponseChunk, jsonChunks, chunker) where
+module OllamaApi (answerQuestion, extractAnswer, makeResponseChunk, jsonChunks, chunker) where
 
 import ChatLogger
-import ChatLoggerSchema
 import Conduit (ConduitM, ConduitT, MonadResource, awaitForever, concatC, concatMapAccumC, concatMapC, concatMapCE, filterC, leftover, mapAccumWhileC, mapC, mapCE, mapM_C, runConduit, runConduitRes, sinkLazy, sourceLazy, yield, (.|))
 import Control.Concurrent (forkIO)
 import Control.Concurrent.STM (STM, TQueue, atomically, readTVar, writeTQueue, writeTVar)
