@@ -111,9 +111,9 @@ getLastQuery = do
   r <- select $ do
     q <- from $ table @Query
     orderBy [desc (q ^. QueryStamp)]
-    limit 1
+    limit 2
     return q
-  return $ listToMaybe r
+  return $ listToMaybe $ drop 1 r -- we actually want the second to last query
 
 getAnswersForLastQuestion' :: (MonadIO m, MonadLogger m) => SqlReadT m [String]
 getAnswersForLastQuestion' = do
