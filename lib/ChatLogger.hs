@@ -87,7 +87,7 @@ addAnswer dbPool answer = mapM_ (runSqlPersistMPool (addAnswer' answer)) dbPool
 addQuery :: Maybe ConnectionPool -> Query -> IO (Maybe (Key Query))
 addQuery dbPool query = mapM (runSqlPersistMPool (addQuery' query)) dbPool
 
-getAnswersForLastQuestion :: Maybe ConnectionPool -> IO (Maybe [Answer])
+getAnswersForLastQuestion :: Maybe ConnectionPool -> IO (Maybe String)
 getAnswersForLastQuestion = mapM (runSqlPersistMPool getAnswersForLastQuestion')
 
 addQuery' :: (MonadIO m, MonadLogger m) => Query -> SqlPersistT m (Key Query)
@@ -115,9 +115,11 @@ getLastQuery = do
     return q
   return $ listToMaybe r
 
-getAnswersForLastQuestion' :: (MonadIO m, MonadLogger m) => SqlReadT m [Answer]
+getAnswersForLastQuestion' :: (MonadIO m, MonadLogger m) => SqlReadT m String
 getAnswersForLastQuestion' = do
   lastQuery <- getLastQuery
   answers <- mapM getAnswersForQuery lastQuery
   let result = concat $ maybeToList answers
-  return $ map entityVal result
+      justAnswers = map entityVal result
+      answerText = concatMap answerAnswer justAnswers
+  return answerText
