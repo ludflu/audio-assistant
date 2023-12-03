@@ -36,7 +36,7 @@ import Data.Traversable
 import Guess (guessingGame)
 import Listener (ListenerMonad, ListenerState (dbPool, mailbox), quitNow, say, speak, writeToMailBox)
 import MatchHelper (dropNonLetters, fuzzyMatch, isMatch, lowerCase)
-import OllamaApi (answerQuestion)
+import OllamaApi (answerQuestion, writeToMailBox')
 import RecordNote (readNote, recordNote)
 import Reminders (setReminder)
 import SayDateTime (currentDay, currentTime)
@@ -59,7 +59,8 @@ acknowledgeAndAnswer question = do
       q = head question
   tstmp <- liftIO getCurrentTime
   qid <- liftIO $ addQuery (dbPool st) $ Query q tstmp
-  liftIO $ OllamaApi.answerQuestion apiUrl (ollamaPort env) (mailbox st) q qid (dbPool st)
+  let mailboxWriter = writeToMailBox' (mailbox st) (dbPool st) qid
+  liftIO $ OllamaApi.answerQuestion mailboxWriter apiUrl (ollamaPort env) q
   return ()
 
 readLastAnswer :: ListenerMonad ()
