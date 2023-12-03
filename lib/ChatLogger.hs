@@ -28,11 +28,23 @@ import Data.Kind (Type)
 import Data.Sequence.Internal.Sorting (Queue (Q))
 import Data.Time (UTCTime)
 import Data.Time.Clock (UTCTime, diffUTCTime, getCurrentTime, nominalDiffTimeToSeconds)
-import Database.Esqueleto.Experimental -- (ConnectionPool, Entity, PersistEntity (Key), SqlReadT, from, limit, orderBy, runMigration, runSqlPersistMPool, select, table, val, where_, (==.), (^.))
--- import Database.Persist (Entity (entityKey), PersistEntity (Key, PersistEntityBackend), PersistQueryRead (selectFirst), PersistStoreRead (get), PersistStoreWrite (insert), SafeToInsert, SelectOpt (Asc, LimitTo), selectList)
--- import Database.Persist.Postgresql (ConnectionString, withPostgresqlConn)
--- import Database.Persist.SqlBackend (SqlBackend)
--- import Database.Persist.TH (mkMigrate, mkPersist, persistLowerCase, share, sqlSettings)
+import Database.Esqueleto.Experimental
+  ( BackendKey (SqlBackendKey),
+    ConnectionPool,
+    Entity (entityKey, entityVal),
+    PersistStoreWrite (insertKey),
+    SqlExpr,
+    SqlPersistT,
+    SqlReadT,
+    from,
+    runMigration,
+    runSqlPersistMPool,
+    select,
+    table,
+    where_,
+    (==.),
+    (^.),
+  )
 import Database.Persist.TH
   ( mkMigrate,
     mkPersist,
@@ -61,8 +73,11 @@ share
 runMigrations :: Maybe ConnectionPool -> IO ()
 runMigrations = mapM_ (runSqlPersistMPool (runMigration migrateAll))
 
--- addAnswer :: Maybe ConnectionPool -> Answer -> IO ()
--- addAnswer dbPool answer = mapM_ (runSqlPersistMPool (insert answer)) dbPool
+addAnswer :: Maybe ConnectionPool -> Entity Answer -> IO ()
+addAnswer dbPool answer = mapM_ (runSqlPersistMPool (addAnswer' answer)) dbPool
+
+addQuery :: Maybe ConnectionPool -> Entity Query -> IO ()
+addQuery dbPool query = mapM_ (runSqlPersistMPool (addQuery' query)) dbPool
 
 -- addQuery :: Maybe ConnectionPool -> Query -> IO (Maybe (Key Query))
 -- addQuery dbPool query = do
@@ -76,11 +91,11 @@ runMigrations = mapM_ (runSqlPersistMPool (runMigration migrateAll))
 
 -- addAnswer :: Entity Answer -> (MonadIO m, MonadLogger m) => SqlPersistT m ()
 
-addQuery :: (MonadIO m, MonadLogger m) => Entity Query -> SqlPersistT m ()
-addQuery a = insertKey (entityKey a) (entityVal a)
+addQuery' :: (MonadIO m, MonadLogger m) => Entity Query -> SqlPersistT m ()
+addQuery' q = insertKey (entityKey q) (entityVal q)
 
-addAnswer :: (MonadIO m, MonadLogger m) => Entity Answer -> SqlPersistT m ()
-addAnswer a = insertKey (entityKey a) (entityVal a)
+addAnswer' :: (MonadIO m, MonadLogger m) => Entity Answer -> SqlPersistT m ()
+addAnswer' a = insertKey (entityKey a) (entityVal a)
 
 getAnswers :: (MonadIO m, MonadLogger m) => SqlReadT m [Entity Answer]
 getAnswers = select $ from $ table @Answer -- where_ [a . AnswerParent ==. entityKey query]
