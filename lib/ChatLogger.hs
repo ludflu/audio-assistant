@@ -35,6 +35,7 @@ import Database.Esqueleto.Experimental
     Entity (entityKey, entityVal),
     PersistEntity (Key),
     PersistQueryRead (selectFirst),
+    PersistStoreRead (get),
     PersistStoreWrite (insert, insertKey, insert_),
     SqlExpr,
     SqlPersistT,
@@ -47,6 +48,7 @@ import Database.Esqueleto.Experimental
     runSqlPersistMPool,
     select,
     table,
+    val,
     where_,
     (==.),
     (^.),
@@ -94,10 +96,11 @@ addAnswer' = insert_
 getAnswers :: (MonadIO m, MonadLogger m) => SqlReadT m [Entity Answer]
 getAnswers = select $ from $ table @Answer
 
-getAnswersForQuery :: (MonadIO m, MonadLogger m) => SqlExpr (Entity Query) -> SqlReadT m [Entity Answer]
+getAnswersForQuery :: (MonadIO m, MonadLogger m) => Entity Query -> SqlReadT m [Entity Answer]
 getAnswersForQuery query = select $ do
   a <- from $ table @Answer
-  where_ (a ^. AnswerParent ==. query ^. QueryId)
+  let qkey = entityKey query
+  where_ ((a ^. AnswerParent) ==. val qkey)
   return a
 
 getLastQuery :: (MonadIO m, MonadLogger m) => SqlReadT m (Maybe (Entity Query))
@@ -108,3 +111,8 @@ getLastQuery = do
     limit 1
     return q
   return $ listToMaybe r
+
+getAnswersForLastQuestion :: (MonadIO m, MonadLogger m) => SqlReadT m (Maybe [Entity Answer])
+getAnswersForLastQuestion = do
+  lastQuery <- getLastQuery
+  mapM getAnswersForQuery lastQuery
