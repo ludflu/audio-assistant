@@ -11,10 +11,10 @@ run:
 		--ollamaHost 192.168.1.200 \
 		--mailUser ${GMAIL_USR} \
 		--mailPassword "${GMAIL_PWD}" \
-		--dbHost localhost
+		--dbHost localhost \
 		--dbname ${DBNAME} \
 		--dbUser ${DBUSER} \
-		--dbPassword ${DBWD}
+		--dbPassword "${DBPWD}"
 
 dep:
 	sudo apt install pulseaudio
