@@ -62,6 +62,13 @@ acknowledgeAndAnswer mailbox question = do
   liftIO $ OllamaApi.answerQuestion apiUrl (ollamaPort env) mailbox q qid (dbPool st)
   return ()
 
+readLastAnswer :: ListenerMonad ()
+readLastAnswer = do
+  st <- get
+  answers <- liftIO $ getAnswersForLastQuestion (dbPool st)
+  let answerText = concat $ maybeToList answers
+  mapM_ writeToMailBox answerText
+
 regexResponses :: TQueue String -> M.Map Regex ListenerAction
 regexResponses mailbox =
   M.fromList
@@ -75,6 +82,7 @@ regexResponses mailbox =
       ([re|read the note|], const readNote),
       ([re|computer set a reminder for (.*) minutes|], setReminder),
       ([re|email the note|], const sendEmailNote),
+      ([re|computer read the last answer|], const readLastAnswer),
       ([re|(?:okay|ok)[\,]? genius (.*)|], acknowledgeAndAnswer mailbox)
     ]
 

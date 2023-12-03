@@ -107,7 +107,7 @@ getDbStuff q d = do
   d' <- d
   return (q', d')
 
-answerQuestion :: String -> Int -> TQueue String -> String -> Maybe QueryId -> Maybe ConnectionPool -> IO ()
+answerQuestion :: String -> Int -> TQueue String -> String -> Maybe (Key ChatLogger.Query) -> Maybe ConnectionPool -> IO ()
 answerQuestion url port mailbox question queryId dbPool = do
   print "sending to api:\n"
   print question
