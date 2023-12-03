@@ -33,11 +33,15 @@ import Database.Esqueleto.Experimental
     ConnectionPool,
     Entity (entityKey, entityVal),
     PersistEntity (Key),
+    PersistQueryRead (selectFirst),
     PersistStoreWrite (insert, insertKey, insert_),
     SqlExpr,
     SqlPersistT,
     SqlReadT,
+    desc,
     from,
+    limit,
+    orderBy,
     runMigration,
     runSqlPersistMPool,
     select,
@@ -80,18 +84,6 @@ addAnswer dbPool answer = mapM_ (runSqlPersistMPool (addAnswer' answer)) dbPool
 addQuery :: Maybe ConnectionPool -> Query -> IO (Maybe (Key Query))
 addQuery dbPool query = mapM (runSqlPersistMPool (addQuery' query)) dbPool
 
--- addQuery :: Maybe ConnectionPool -> Query -> IO (Maybe (Key Query))
--- addQuery dbPool query = do
---   case dbPool of
---     Just pool -> liftIO $ flip runSqlPersistMPool pool $ do
---       qid <- insert query
---       return $ Just qid
---     Nothing -> return Nothing
-
--- getAnswers :: (MonadIO m, MonadLogger m) => SqlReadT m [Entity Answer]
-
--- addAnswer :: Entity Answer -> (MonadIO m, MonadLogger m) => SqlPersistT m ()
-
 addQuery' :: (MonadIO m, MonadLogger m) => Query -> SqlPersistT m (Key Query)
 addQuery' = insert
 
@@ -99,7 +91,7 @@ addAnswer' :: (MonadIO m, MonadLogger m) => Answer -> SqlPersistT m ()
 addAnswer' = insert_
 
 getAnswers :: (MonadIO m, MonadLogger m) => SqlReadT m [Entity Answer]
-getAnswers = select $ from $ table @Answer -- where_ [a . AnswerParent ==. entityKey query]
+getAnswers = select $ from $ table @Answer
 
 getAnswersForQuery :: (MonadIO m, MonadLogger m) => SqlExpr (Entity Query) -> SqlReadT m [Entity Answer]
 getAnswersForQuery query = select $ do
@@ -107,20 +99,10 @@ getAnswersForQuery query = select $ do
   where_ (a ^. AnswerParent ==. query ^. QueryId)
   return a
 
--- getLastAnswers :: (MonadIO m, MonadLogger m) => Entity Query -> SqlPersistT m [Entity Answer]
-
--- getLastAnswers q = do
---   q <- select $ from $ table @Query orderBy [desc q . QueryStamp] limit 1
---   select $ from $ table @Answer where_ [a . AnswerParent ==. entityKey q]
-
--- getLastAnswer :: (MonadIO m, MonadLogger m) => Entity Query -> SqlPersistT m [Entity Answer]
--- getLastAnswer = do
---   qq <- getLastQuery
---   let q = head qq
---    in getAnswers q
-
--- getLastAnswer :: (MonadIO m, MonadLogger m) => Entity Query -> SqlPersistT m [Entity Answer]
--- getLastAnswer = do res <- rawSql "" []
---   forM_
---   results
---   $ \r -> do return r
+getLastQuery :: (MonadIO m, MonadLogger m) => SqlReadT m [Entity Query]
+getLastQuery = do
+  select $ do
+    q <- from $ table @Query
+    orderBy [desc (q ^. QueryStamp)]
+    limit 1
+    return q
