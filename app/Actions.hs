@@ -40,7 +40,7 @@ import OllamaApi (answerQuestion, writeToMailBox')
 import RecordNote (readNote, recordNote)
 import Reminders (setReminder)
 import SayDateTime (currentDay, currentTime)
-import SendEmail (email, sendEmailNote)
+import SendEmail (email, sendEmailAnswer, sendEmailNote)
 import System.Process
 import Text.Regex.PCRE.Heavy (Regex, re, scan)
 import WeatherFetcher (getWeather)
@@ -83,6 +83,7 @@ regexResponses =
       ([re|read the note|], const readNote),
       ([re|computer set a reminder for (.*) minutes|], setReminder),
       ([re|email the note|], const sendEmailNote),
+      ([re|computer email the last answer|], const sendEmailAnswer),
       ([re|computer read the last answer|], const readLastAnswer),
       ([re|(?:okay|ok)[\,]? genius (.*)|], acknowledgeAndAnswer)
     ]

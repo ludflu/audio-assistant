@@ -107,14 +107,6 @@ getDbStuff q d = do
   d' <- d
   return (q', d')
 
-answerQuestion :: (String -> ResourceT IO ()) -> String -> Int -> String -> IO ()
-answerQuestion action url port question = do
-  print "sending to api:\n"
-  print question
-  --  let action = writeToMailBox' mailbox dbPool queryId
-  forkIO $ answerQuestion' action url port question
-  return ()
-
 chunker :: Monad m => (String -> m ()) -> ConduitT B.ByteString c m ()
 chunker chunkAction =
   jsonChunks '}'
@@ -124,8 +116,8 @@ chunker chunkAction =
     .| splitOnUnboundedE isPunct -- TODO can we split on more than one character so we don't split decimal points?
     .| mapM_C chunkAction
 
-answerQuestion' :: (String -> ResourceT IO ()) -> String -> Int -> String -> IO ()
-answerQuestion' action url apiPort question =
+answerQuestion :: (String -> ResourceT IO ()) -> String -> Int -> String -> IO ()
+answerQuestion action url apiPort question =
   let payload = OllamaRequest {model = "llama2", prompt = question, stream = True}
       body = RequestBodyLBS $ encode payload
    in do
