@@ -12,6 +12,9 @@ run:
 		--mailUser ${GMAIL_USR} \
 		--mailPassword "${GMAIL_PWD}" \
 		--dbHost localhost
+		--dbname ${DBNAME} \
+		--dbUser ${DBUSER} \
+		--dbPassword ${DBWD}
 
 dep:
 	sudo apt install pulseaudio
