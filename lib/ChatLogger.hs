@@ -25,6 +25,7 @@ import Control.Monad.Reader (ReaderT)
 import qualified Control.Monad.State as ST
 import Data.Aeson.KeyMap (mapMaybe)
 import Data.Kind (Type)
+import Data.Maybe (listToMaybe)
 import Data.Sequence.Internal.Sorting (Queue (Q))
 import Data.Time (UTCTime)
 import Data.Time.Clock (UTCTime, diffUTCTime, getCurrentTime, nominalDiffTimeToSeconds)
@@ -99,10 +100,11 @@ getAnswersForQuery query = select $ do
   where_ (a ^. AnswerParent ==. query ^. QueryId)
   return a
 
-getLastQuery :: (MonadIO m, MonadLogger m) => SqlReadT m [Entity Query]
+getLastQuery :: (MonadIO m, MonadLogger m) => SqlReadT m (Maybe (Entity Query))
 getLastQuery = do
-  select $ do
+  r <- select $ do
     q <- from $ table @Query
     orderBy [desc (q ^. QueryStamp)]
     limit 1
     return q
+  return $ listToMaybe r
