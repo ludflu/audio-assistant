@@ -25,7 +25,7 @@ import Control.Monad.Reader (ReaderT)
 import qualified Control.Monad.State as ST
 import Data.Aeson.KeyMap (mapMaybe)
 import Data.Kind (Type)
-import Data.Maybe (listToMaybe)
+import Data.Maybe (listToMaybe, maybeToList)
 import Data.Sequence.Internal.Sorting (Queue (Q))
 import Data.Time (UTCTime)
 import Data.Time.Clock (UTCTime, diffUTCTime, getCurrentTime, nominalDiffTimeToSeconds)
@@ -87,6 +87,9 @@ addAnswer dbPool answer = mapM_ (runSqlPersistMPool (addAnswer' answer)) dbPool
 addQuery :: Maybe ConnectionPool -> Query -> IO (Maybe (Key Query))
 addQuery dbPool query = mapM (runSqlPersistMPool (addQuery' query)) dbPool
 
+getAnswersForLastQuestion :: Maybe ConnectionPool -> IO (Maybe [Answer])
+getAnswersForLastQuestion = mapM (runSqlPersistMPool getAnswersForLastQuestion')
+
 addQuery' :: (MonadIO m, MonadLogger m) => Query -> SqlPersistT m (Key Query)
 addQuery' = insert
 
@@ -112,7 +115,9 @@ getLastQuery = do
     return q
   return $ listToMaybe r
 
-getAnswersForLastQuestion :: (MonadIO m, MonadLogger m) => SqlReadT m (Maybe [Entity Answer])
-getAnswersForLastQuestion = do
+getAnswersForLastQuestion' :: (MonadIO m, MonadLogger m) => SqlReadT m [Answer]
+getAnswersForLastQuestion' = do
   lastQuery <- getLastQuery
-  mapM getAnswersForQuery lastQuery
+  answers <- mapM getAnswersForQuery lastQuery
+  let result = concat $ maybeToList answers
+  return $ map entityVal result
