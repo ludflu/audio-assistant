@@ -8,7 +8,6 @@
 module Actions where
 
 import ChatLogger
-import ChatLoggerSchema
 import ConfigParser (EnvConfig (mailPassword, mailUser, ollamaHost, ollamaPort))
 import Control.Concurrent.STM (STM, TQueue, atomically, readTVar, writeTVar)
 import Control.Monad.Reader (MonadReader, ReaderT, ask, liftIO, runReaderT)

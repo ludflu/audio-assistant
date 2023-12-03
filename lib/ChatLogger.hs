@@ -32,7 +32,7 @@ import Database.Esqueleto.Experimental
   ( BackendKey (SqlBackendKey),
     ConnectionPool,
     Entity (entityKey, entityVal),
-    PersistStoreWrite (insertKey),
+    PersistStoreWrite (insert, insertKey, insert_),
     SqlExpr,
     SqlPersistT,
     SqlReadT,
@@ -73,10 +73,10 @@ share
 runMigrations :: Maybe ConnectionPool -> IO ()
 runMigrations = mapM_ (runSqlPersistMPool (runMigration migrateAll))
 
-addAnswer :: Maybe ConnectionPool -> Entity Answer -> IO ()
+addAnswer :: Maybe ConnectionPool -> Answer -> IO ()
 addAnswer dbPool answer = mapM_ (runSqlPersistMPool (addAnswer' answer)) dbPool
 
-addQuery :: Maybe ConnectionPool -> Entity Query -> IO ()
+addQuery :: Maybe ConnectionPool -> Query -> IO ()
 addQuery dbPool query = mapM_ (runSqlPersistMPool (addQuery' query)) dbPool
 
 -- addQuery :: Maybe ConnectionPool -> Query -> IO (Maybe (Key Query))
@@ -91,11 +91,11 @@ addQuery dbPool query = mapM_ (runSqlPersistMPool (addQuery' query)) dbPool
 
 -- addAnswer :: Entity Answer -> (MonadIO m, MonadLogger m) => SqlPersistT m ()
 
-addQuery' :: (MonadIO m, MonadLogger m) => Entity Query -> SqlPersistT m ()
-addQuery' q = insertKey (entityKey q) (entityVal q)
+addQuery' :: (MonadIO m, MonadLogger m) => Query -> SqlPersistT m ()
+addQuery' = insert_
 
-addAnswer' :: (MonadIO m, MonadLogger m) => Entity Answer -> SqlPersistT m ()
-addAnswer' a = insertKey (entityKey a) (entityVal a)
+addAnswer' :: (MonadIO m, MonadLogger m) => Answer -> SqlPersistT m ()
+addAnswer' = insert_
 
 getAnswers :: (MonadIO m, MonadLogger m) => SqlReadT m [Entity Answer]
 getAnswers = select $ from $ table @Answer -- where_ [a . AnswerParent ==. entityKey query]
