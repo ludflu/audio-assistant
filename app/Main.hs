@@ -9,13 +9,15 @@ module Main where
 
 import Actions (findResponseRegex)
 import ChatLogger
-import ConfigParser (EnvConfig (dbHost, localpath, wavpath), parseConfig)
+import qualified Codec.Binary.UTF8.Generic as B
+import ConfigParser (EnvConfig (dbHost, dbName, dbPassword, dbUser, localpath, wavpath), parseConfig)
 import Control.Concurrent (forkIO, killThread, threadDelay)
 import Control.Concurrent.MVar (MVar, newEmptyMVar)
 import Control.Concurrent.STM (STM, TQueue, atomically, newTQueueIO, readTVar)
 import Control.Monad (unless)
 import Control.Monad.Logger (runStdoutLoggingT)
 import Control.Monad.State (liftIO)
+import qualified Data.ByteString as B
 import Data.Time.Clock (UTCTime, getCurrentTime)
 import Database.Persist.Postgresql (ConnectionPool, PostgresConf (PostgresConf, pgConnStr, pgPoolIdleTimeout, pgPoolSize, pgPoolStripes), createPostgresqlPoolWithConf, defaultPostgresConfHooks, withPostgresqlPool, withPostgresqlPoolWithConf)
 import Listener
@@ -66,6 +68,15 @@ runJob config startState = do
   killThread recorderThread
   run config -- dirty hack because things sometimes crash
 
+makeDbConfig :: EnvConfig -> Maybe PostgresConf
+makeDbConfig config = do
+  user <- dbUser config
+  pwd <- dbPassword config
+  host <- dbHost config
+  dbname <- dbName config
+  let connStr = concat ["host=", host, " port=5432 user=", user, " password=", pwd, " dbname=", dbname]
+   in return $ PostgresConf {pgConnStr = B.fromString connStr, pgPoolSize = 2, pgPoolIdleTimeout = 10, pgPoolStripes = 1}
+
 run :: EnvConfig -> IO ()
 run config = do
   currentTime <- getCurrentTime
@@ -82,15 +93,14 @@ run config = do
           then currentWorkingDirectory
           else wavpath config
       startState' = initialState currentTime vad shouldAudioReset emptyMailbox (outpath ++ "/in0.wav")
-   in case dbHost config of
-        Just host -> do
-          let pgconfig = PostgresConf {pgConnStr = "host=localhost port=5432 user=postgres password=<PASSWORD> dbname=vad", pgPoolSize = 2, pgPoolIdleTimeout = 10, pgPoolStripes = 1}
-          runStdoutLoggingT $ withPostgresqlPoolWithConf pgconfig defaultPostgresConfHooks $ \pool -> do
+      dbConfig = makeDbConfig _config
+   in case dbConfig of
+        Just pgConfig -> do
+          runStdoutLoggingT $ withPostgresqlPoolWithConf pgConfig defaultPostgresConfHooks $ \pool -> do
             let startState = startState' (Just pool)
              in liftIO $ do
                   runMigrations (Just pool)
                   runJob _config startState
-
         Nothing -> do
           let startState = startState' Nothing
            in liftIO $ runJob _config startState

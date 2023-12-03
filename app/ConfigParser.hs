@@ -28,13 +28,16 @@ data EnvConfig = EnvConfig
     mailUser :: Maybe String,
     mailPassword :: Maybe String,
     mailServer :: String,
-    dbHost :: Maybe String,
     ollamaHost :: String,
     ollamaPort :: Int,
     whisperHost :: String,
     whisperPort :: Int,
     sileroHost :: String,
-    sileroPort :: Int
+    sileroPort :: Int,
+    dbHost :: Maybe String,
+    dbUser :: Maybe String,
+    dbPassword :: Maybe String,
+    dbName :: Maybe String
   }
   deriving (Show)
 
@@ -116,11 +119,6 @@ parseConfig =
           <> showDefault
           <> help "smtp server for sending email"
       )
-    <*> optional
-      ( strOption $
-          long "dbHost"
-            <> help "hostname or ip address of the database server"
-      )
     <*> strOption
       ( long "ollamaHost"
           <> value "127.0.0.1"
@@ -160,4 +158,24 @@ parseConfig =
           <> showDefault
           <> value 5002
           <> metavar "INT"
+      )
+    <*> optional
+      ( strOption $
+          long "dbHost"
+            <> help "hostname or ip address of the database server"
+      )
+    <*> optional
+      ( strOption $
+          long "dbUser"
+            <> help "database user name"
+      )
+    <*> optional
+      ( strOption $
+          long "dbPassword"
+            <> help "database password"
+      )
+    <*> optional
+      ( strOption $
+          long "dbname"
+            <> help "database name"
       )

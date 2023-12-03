@@ -5,7 +5,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module OllamaApi (answerQuestion, getAnswer, makeResponseChunk, jsonChunks, chunker) where
+module OllamaApi (answerQuestion, extractAnswer, makeResponseChunk, jsonChunks, chunker) where
 
 import ChatLogger
 import Conduit (ConduitM, ConduitT, MonadResource, awaitForever, concatC, concatMapAccumC, concatMapC, concatMapCE, filterC, leftover, mapAccumWhileC, mapC, mapCE, mapM_C, runConduit, runConduitRes, sinkLazy, sourceLazy, yield, (.|))
@@ -32,7 +32,7 @@ import Data.Text.Array (run)
 import qualified Data.Text.Encoding as TE
 import Data.Time (getCurrentTime)
 import Data.Word (Word8)
-import Database.Persist.Postgresql (ConnectionPool)
+import Database.Persist.Postgresql (ConnectionPool, Entity (Entity))
 import GHC.Generics (Generic)
 import Listener
 import Network.HTTP.Conduit
@@ -68,8 +68,8 @@ instance ToJSON OllamaRequest
 
 instance FromJSON OllamaResponse
 
-getAnswer :: OllamaResponse -> String
-getAnswer = response
+extractAnswer :: OllamaResponse -> String
+extractAnswer = response
 
 parseAnswer :: BLS.ByteString -> Maybe String
 parseAnswer llamaRsp =
@@ -98,7 +98,7 @@ writeToMailBox' :: MonadResource m => TQueue String -> Maybe QueryId -> Maybe Co
 writeToMailBox' mbox queryId dbPool msg =
   liftResourceT $
     liftIO $ do
-      mapM_ (\qid -> addAnswer dbPool $ Answer qid msg) queryId
+      mapM_ (\qid -> addAnswer dbPool (Answer qid msg)) queryId
       atomically $ writeTQueue mbox msg
 
 getDbStuff :: Maybe QueryId -> Maybe ConnectionPool -> Maybe (QueryId, ConnectionPool)
@@ -107,7 +107,7 @@ getDbStuff q d = do
   d' <- d
   return (q', d')
 
-answerQuestion :: String -> Int -> TQueue String -> String -> Maybe QueryId -> Maybe ConnectionPool -> IO ()
+answerQuestion :: String -> Int -> TQueue String -> String -> Maybe (Key ChatLogger.Query) -> Maybe ConnectionPool -> IO ()
 answerQuestion url port mailbox question queryId dbPool = do
   print "sending to api:\n"
   print question
@@ -119,7 +119,7 @@ chunker chunkAction =
   jsonChunks '}'
     .| mapC makeResponseChunk
     .| filterC isJust
-    .| mapC (getAnswer . fromJust)
+    .| mapC (extractAnswer . fromJust)
     .| splitOnUnboundedE isPunct -- TODO can we split on more than one character so we don't split decimal points?
     .| mapM_C chunkAction
 

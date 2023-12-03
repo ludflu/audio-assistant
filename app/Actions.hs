@@ -50,8 +50,8 @@ type ListenerAction = [String] -> ListenerMonad ()
 greet :: [String] -> String
 greet params = "Hello " ++ head params ++ " its nice to meet you"
 
-acknowledgeAndAnswer :: TQueue String -> [String] -> ListenerMonad ()
-acknowledgeAndAnswer mailbox question = do
+acknowledgeAndAnswer :: [String] -> ListenerMonad ()
+acknowledgeAndAnswer question = do
   _ <- say "Thinking...  "
   env <- ask
   st <- get
@@ -59,11 +59,18 @@ acknowledgeAndAnswer mailbox question = do
       q = head question
   tstmp <- liftIO getCurrentTime
   qid <- liftIO $ addQuery (dbPool st) $ Query q tstmp
-  liftIO $ OllamaApi.answerQuestion apiUrl (ollamaPort env) mailbox q qid (dbPool st)
+  liftIO $ OllamaApi.answerQuestion apiUrl (ollamaPort env) (mailbox st) q qid (dbPool st)
   return ()
 
-regexResponses :: TQueue String -> M.Map Regex ListenerAction
-regexResponses mailbox =
+readLastAnswer :: ListenerMonad ()
+readLastAnswer = do
+  st <- get
+  answers <- liftIO $ getAnswersForLastQuestion (dbPool st)
+  let answerText = concat $ maybeToList answers
+  mapM_ writeToMailBox answerText
+
+regexResponses :: M.Map Regex ListenerAction
+regexResponses =
   M.fromList
     [ ([re|computer my name is (.*)|], writeToMailBox . greet),
       ([re|computer what time is it|], const currentTime),
@@ -75,7 +82,8 @@ regexResponses mailbox =
       ([re|read the note|], const readNote),
       ([re|computer set a reminder for (.*) minutes|], setReminder),
       ([re|email the note|], const sendEmailNote),
-      ([re|(?:okay|ok)[\,]? genius (.*)|], acknowledgeAndAnswer mailbox)
+      ([re|computer read the last answer|], const readLastAnswer),
+      ([re|(?:okay|ok)[\,]? genius (.*)|], acknowledgeAndAnswer)
     ]
 
 dispatchRegex :: M.Map Regex ListenerAction -> String -> ListenerMonad ()
@@ -92,9 +100,4 @@ dispatchRegex responses query =
    in fromMaybe (pure ()) maybeFunc
 
 findResponseRegex :: String -> ListenerMonad ()
-findResponseRegex query = do
-  state <- get
-  let mbox = mailbox state
-      actionMap = regexResponses mbox
-      action = dispatchRegex actionMap query
-  action
+findResponseRegex = dispatchRegex regexResponses
