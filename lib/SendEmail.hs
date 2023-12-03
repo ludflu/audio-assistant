@@ -2,12 +2,15 @@
 
 module SendEmail where
 
+import ChatLogger (getAnswersForLastQuestion)
 import ConfigParser (EnvConfig (mailUser), mailPassword, mailServer)
 import Control.Monad (when)
 import Control.Monad.Reader (MonadReader, ReaderT, ask, liftIO, runReaderT)
-import Data.Text (Text, pack)
+import Control.Monad.State (get)
+import Data.Maybe (maybeToList)
+import Data.Text (Text, intercalate, pack)
 import qualified Data.Text.Lazy as L
-import Listener (ListenerMonad)
+import Listener (ListenerMonad, ListenerState (dbPool), say)
 import Network.HaskellNet.Auth (AuthType (LOGIN))
 import Network.HaskellNet.SMTP.SSL
   ( AuthType (LOGIN),
@@ -61,3 +64,15 @@ sendEmailNote = do
   let userPwd = getUserPwd config
       msg = pack note
   mapM_ (\(user, password) -> liftIO $ email (pack user) msg (mailServer config) user password) userPwd
+
+sendEmailAnswer :: ListenerMonad ()
+sendEmailAnswer = do
+  st <- get
+  config <- ask
+  answer <- liftIO $ getAnswersForLastQuestion (dbPool st)
+  let answerLines = concat $ maybeToList answer
+      answerMsg = intercalate "\n" $ map pack answerLines
+      userPwd = getUserPwd config
+  mapM_ (\(user, password) -> liftIO $ email (pack user) answerMsg (mailServer config) user password) userPwd
+  say "Answer Emailed!"
+  return ()

@@ -36,11 +36,11 @@ import Data.Traversable
 import Guess (guessingGame)
 import Listener (ListenerMonad, ListenerState (dbPool, mailbox), quitNow, say, speak, writeToMailBox)
 import MatchHelper (dropNonLetters, fuzzyMatch, isMatch, lowerCase)
-import OllamaApi (answerQuestion)
+import OllamaApi (answerQuestion, writeToMailBox')
 import RecordNote (readNote, recordNote)
 import Reminders (setReminder)
 import SayDateTime (currentDay, currentTime)
-import SendEmail (email, sendEmailNote)
+import SendEmail (email, sendEmailAnswer, sendEmailNote)
 import System.Process
 import Text.Regex.PCRE.Heavy (Regex, re, scan)
 import WeatherFetcher (getWeather)
@@ -59,7 +59,8 @@ acknowledgeAndAnswer question = do
       q = head question
   tstmp <- liftIO getCurrentTime
   qid <- liftIO $ addQuery (dbPool st) $ Query q tstmp
-  liftIO $ OllamaApi.answerQuestion apiUrl (ollamaPort env) (mailbox st) q qid (dbPool st)
+  let mailboxWriter = writeToMailBox' (mailbox st) (dbPool st) qid
+  liftIO $ OllamaApi.answerQuestion mailboxWriter apiUrl (ollamaPort env) q
   return ()
 
 readLastAnswer :: ListenerMonad ()
@@ -82,6 +83,7 @@ regexResponses =
       ([re|read the note|], const readNote),
       ([re|computer set a reminder for (.*) minutes|], setReminder),
       ([re|email the note|], const sendEmailNote),
+      ([re|computer email the last answer|], const sendEmailAnswer),
       ([re|computer read the last answer|], const readLastAnswer),
       ([re|(?:okay|ok)[\,]? genius (.*)|], acknowledgeAndAnswer)
     ]
