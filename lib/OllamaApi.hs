@@ -32,7 +32,7 @@ import Data.Text.Array (run)
 import qualified Data.Text.Encoding as TE
 import Data.Time (getCurrentTime)
 import Data.Word (Word8)
-import Database.Persist.Postgresql (ConnectionPool)
+import Database.Persist.Postgresql (ConnectionPool, Entity (Entity))
 import GHC.Generics (Generic)
 import Listener
 import Network.HTTP.Conduit
@@ -98,7 +98,7 @@ writeToMailBox' :: MonadResource m => TQueue String -> Maybe QueryId -> Maybe Co
 writeToMailBox' mbox queryId dbPool msg =
   liftResourceT $
     liftIO $ do
-      mapM_ (\qid -> addAnswer dbPool $ Answer qid msg) queryId
+      mapM_ (\qid -> addAnswer dbPool (Answer qid msg)) queryId
       atomically $ writeTQueue mbox msg
 
 getDbStuff :: Maybe QueryId -> Maybe ConnectionPool -> Maybe (QueryId, ConnectionPool)
