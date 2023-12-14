@@ -150,10 +150,9 @@ getListenerState :: ListenerMonad ListenerState
 getListenerState = do
   listener <- get
   wasRecordingReset <- liftIO $ tryTakeMVar $ audioReset listener
-  mail <- liftIO $ atomically $ tryReadTQueue $ mailbox listener
-
-  when (isJust mail) (mapM_ say mail)
   resetOffset wasRecordingReset
+  mail <- liftIO $ atomically $ tryReadTQueue $ mailbox listener
+  mapM_ say mail
   get
 
 listenPatiently :: ListenerMonad String
