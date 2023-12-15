@@ -118,7 +118,7 @@ chunker chunkAction =
 
 answerQuestion :: (String -> ResourceT IO ()) -> String -> Int -> String -> IO ()
 answerQuestion action url apiPort question =
-  let payload = OllamaRequest {model = "llama2", prompt = question, stream = True}
+  let payload = OllamaRequest {model = "mistral", prompt = question, stream = True}
       body = RequestBodyLBS $ encode payload
    in do
         request' <- parseRequest url
