@@ -34,7 +34,7 @@ import Data.Time.LocalTime.TimeZone.Olson ()
 import Data.Time.LocalTime.TimeZone.Series
 import Data.Traversable
 import Guess (guessingGame)
-import Listener (ListenerMonad, ListenerState (dbPool, mailbox), quitNow, say, speak, writeToMailBox)
+import Listener (ListenerMonad, ListenerState (dbPool, mailbox), quitNow, readMail, say, speak, writeToMailBox)
 import MatchHelper (dropNonLetters, fuzzyMatch, isMatch, lowerCase)
 import OllamaApi (answerQuestion, writeToMailBox')
 import RecordNote (readNote, recordNote)
@@ -51,17 +51,14 @@ greet :: [String] -> String
 greet params = "Hello " ++ head params ++ " its nice to meet you"
 
 acknowledgeAndAnswer :: [String] -> ListenerMonad ()
-acknowledgeAndAnswer question = do
+acknowledgeAndAnswer questions = do
   _ <- say "Thinking...  "
   env <- ask
   st <- get
-  let apiUrl = "http://" ++ ollamaHost env ++ "/api/generate"
-      q = head question
+  let question = head questions
   tstmp <- liftIO getCurrentTime
-  qid <- liftIO $ addQuery (dbPool st) $ Query q tstmp
-  let mailboxWriter = writeToMailBox' (mailbox st) (dbPool st) qid
-  liftIO $ OllamaApi.answerQuestion mailboxWriter apiUrl (ollamaPort env) q
-  return ()
+  qid <- liftIO $ addQuery (dbPool st) $ Query question tstmp
+  OllamaApi.answerQuestion qid question
 
 readLastAnswer :: ListenerMonad ()
 readLastAnswer = do

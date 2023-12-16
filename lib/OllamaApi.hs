@@ -9,11 +9,14 @@ module OllamaApi (writeToMailBox', answerQuestion, extractAnswer, makeResponseCh
 
 import ChatLogger
 import Conduit (ConduitM, ConduitT, MonadResource, awaitForever, concatC, concatMapAccumC, concatMapC, concatMapCE, filterC, leftover, mapAccumWhileC, mapC, mapCE, mapM_C, runConduit, runConduitRes, sinkLazy, sourceLazy, yield, (.|))
+import ConfigParser
 import Control.Concurrent (forkIO)
 import Control.Concurrent.STM (STM, TQueue, atomically, readTVar, writeTQueue, writeTVar)
 import Control.Exception (throwIO)
 import Control.Monad (liftM, unless, when)
 import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Reader (MonadReader, ReaderT, ask, liftIO, runReaderT)
+import Control.Monad.State (get)
 import Control.Monad.Trans.Resource (ResourceT, liftResourceT, runResourceT)
 import Data.Aeson (FromJSON, ToJSON, Value (Number, Object, String), decode, encode, fromJSON, parseJSON)
 import Data.Aeson.Encoding (string)
@@ -116,17 +119,24 @@ chunker chunkAction =
     .| splitOnUnboundedE isPunct -- TODO can we split on more than one character so we don't split decimal points?
     .| mapM_C chunkAction
 
-answerQuestion :: (String -> ResourceT IO ()) -> String -> Int -> String -> IO ()
-answerQuestion action url apiPort question =
+answerQuestion :: Maybe (Key ChatLogger.Query) -> String -> ListenerMonad ()
+answerQuestion qid question =
   let payload = OllamaRequest {model = "mistral", prompt = question, stream = True}
       body = RequestBodyLBS $ encode payload
    in do
-        request' <- parseRequest url
+        env <- ask
+        st <- get
+        let apiUrl = "http://" ++ ollamaHost env ++ "/api/generate"
+            apiPort = ollamaPort env
+            mailboxWriter = writeToMailBox' (mailbox st) (dbPool st) qid
+
+        request' <- liftIO $ parseRequest apiUrl
         let request'' = request' {method = "POST", requestBody = body, port = apiPort}
             request = setRequestResponseTimeout (responseTimeoutMicro (500 * 1000000)) request''
-        manager <- newManager tlsManagerSettings
-        runResourceT $
-          do
-            rsp <- http request manager
-            runConduit $
-              responseBody rsp .| chunker action
+        manager <- liftIO $ newManager tlsManagerSettings
+        liftIO $
+          runResourceT $
+            do
+              rsp <- http request manager
+              runConduit $
+                responseBody rsp .| chunker mailboxWriter

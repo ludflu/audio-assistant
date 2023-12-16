@@ -140,12 +140,6 @@ calcBoundary listener activations elapsed thresholdPurportion =
 isComplete :: RecordingBound -> Bool
 isComplete bound = isJust (voiceStart bound) && isJust (voiceEnd bound)
 
-waitForFileToArrive :: FilePath -> IO ()
-waitForFileToArrive filename =
-  untilM_
-    (threadDelay 100000)
-    (doesFileExist filename)
-
 getListenerState :: ListenerMonad ListenerState
 getListenerState = do
   listener <- get
@@ -154,6 +148,13 @@ getListenerState = do
   mail <- liftIO $ atomically $ tryReadTQueue $ mailbox listener
   mapM_ say mail
   get
+
+readMail :: ListenerMonad ()
+readMail =
+  do
+    listener <- get
+    mail <- liftIO $ atomically $ tryReadTQueue $ mailbox listener
+    mapM_ say mail
 
 listenPatiently :: ListenerMonad String
 listenPatiently = listenWithThreshold 0.70
