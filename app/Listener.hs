@@ -275,7 +275,7 @@ say msg =
           voiceStartTime = Nothing,
           voiceEndTime = Nothing
         }
-    return dur
+    return durSeconds
 
 trim :: String -> String
 trim s = T.unpack $ T.strip $ T.pack s
