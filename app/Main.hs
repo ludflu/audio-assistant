@@ -54,7 +54,6 @@ commandLoop = do
   query <- listen
   liftIO $ print query
   response <- findResponseRegex query
-  liftIO $ print response
   quit <- shouldQuit
   unless quit commandLoop
 
