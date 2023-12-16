@@ -262,6 +262,7 @@ say msg =
     listenerState <- get
     config <- ask
     dur <- liftIO $ sayText (sileroHost config) (sileroPort config) msg
+    liftIO $ print $ "duration: " ++ (show dur)
     endTime <- liftIO getCurrentTime
     let offset = timeOffset listenerState + dur + sleepSeconds config -- advance the offset to skip over the time when the computer was talking
     put
