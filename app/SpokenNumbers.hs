@@ -1,6 +1,6 @@
 {-# LANGUAGE QuasiQuotes #-}
 
-module SpokenNumbers (convertNumber, convertNString, convertAllNumbers, readUnit, numLookup) where
+module SpokenNumbers (convertNumber, convertNString, convertAllNumbers, readUnit, lookupNum) where
 
 import Data.Char
 import qualified Data.Map as M
