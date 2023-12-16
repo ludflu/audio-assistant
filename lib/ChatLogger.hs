@@ -19,13 +19,14 @@
 
 module ChatLogger where
 
+import Control.Monad (join)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Logger (MonadLogger, runStderrLoggingT)
 import Control.Monad.Reader (ReaderT)
 import qualified Control.Monad.State as ST
 import Data.Aeson.KeyMap (mapMaybe)
 import Data.Kind (Type)
-import Data.Maybe (listToMaybe, maybeToList)
+import Data.Maybe (catMaybes, listToMaybe, maybeToList)
 import Data.Sequence.Internal.Sorting (Queue (Q))
 import Data.Time (UTCTime)
 import Data.Time.Clock (UTCTime, diffUTCTime, getCurrentTime, nominalDiffTimeToSeconds)
@@ -89,6 +90,12 @@ addQuery dbPool query = mapM (runSqlPersistMPool (addQuery' query)) dbPool
 
 getAnswersForLastQuestion :: Maybe ConnectionPool -> IO (Maybe [String])
 getAnswersForLastQuestion = mapM (runSqlPersistMPool getAnswersForLastQuestion')
+
+getLastQuestion :: Maybe ConnectionPool -> IO (Maybe (Entity Query))
+getLastQuestion pool =
+  do
+    mq <- mapM (runSqlPersistMPool getLastQuery) pool
+    return $ join mq
 
 addQuery' :: (MonadIO m, MonadLogger m) => Query -> SqlPersistT m (Key Query)
 addQuery' = insert
