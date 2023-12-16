@@ -202,7 +202,7 @@ listenWithThreshold threshold = do
         when (debug env) (liftIO $ print transcript)
         return transcript
     else do
-      liftIO $ threadDelay $ round (sleepSeconds env * 1000000)
+      --      liftIO $ threadDelay $ round (sleepSeconds env * 1000000)
       listen
 
 resetVoiceBounds :: ListenerMonad ()
