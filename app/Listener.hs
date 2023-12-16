@@ -202,10 +202,10 @@ listenWithThreshold threshold = do
         when (debug env) (liftIO $ print transcript)
         return transcript
     else do
-      put
-        listener
-          { timeOffset = ending + sleepSeconds env
-          }
+      -- put
+      --   listener
+      --     { timeOffset = ending + sleepSeconds env
+      --     }
       liftIO $ threadDelay $ round (sleepSeconds env * 1000000)
       listen
 
