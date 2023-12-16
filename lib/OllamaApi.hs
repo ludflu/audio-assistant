@@ -130,13 +130,11 @@ answerQuestion qid question =
             apiPort = ollamaPort env
             mailboxWriter = writeToMailBox' (mailbox st) (dbPool st) qid
 
-        request' <- liftIO $ parseRequest apiUrl
-        let request'' = request' {method = "POST", requestBody = body, port = apiPort}
-            request = setRequestResponseTimeout (responseTimeoutMicro (500 * 1000000)) request''
-        manager <- liftIO $ newManager tlsManagerSettings
-        liftIO $
-          runResourceT $
-            do
-              rsp <- http request manager
-              runConduit $
-                responseBody rsp .| chunker mailboxWriter
+        liftIO $ do
+          request' <- parseRequest apiUrl
+          let request'' = request' {method = "POST", requestBody = body, port = apiPort}
+              request = setRequestResponseTimeout (responseTimeoutMicro (500 * 1000000)) request''
+          manager <- newManager tlsManagerSettings
+          runResourceT $ do
+            rsp <- http request manager
+            runConduit $ responseBody rsp .| chunker mailboxWriter
