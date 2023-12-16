@@ -189,7 +189,7 @@ listenWithThreshold threshold = do
     listener
       { voiceStartTime = voiceStart boundary,
         voiceEndTime = voiceEnd boundary,
-        timeOffset = ending
+        timeOffset = ending + sleepSeconds env
       }
   if isComplete boundary && length > 0
     then do
@@ -197,7 +197,7 @@ listenWithThreshold threshold = do
       liftIO $ do
         let se = getStartEnd (voiceStart boundary) (voiceEnd boundary)
             (start, end) = fromMaybe (0.0, 0.0) se -- this default should never happen
-        writeBoundedWave (path listener) capfilepath (start - 0.10) end (audioRate env) -- back up a 1/10 second to make sure we don't lose anything
+        writeBoundedWave (path listener) capfilepath (start) end (audioRate env) -- maybe ? back up a 1/10 second to make sure we don't lose anything
         transcript <- sendAudio ("http://" ++ whisperHost env ++ "/") (whisperPort env) capfilepath
         when (debug env) (liftIO $ print transcript)
         return transcript
