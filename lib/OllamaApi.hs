@@ -26,6 +26,7 @@ import Data.ByteString.Builder (byteString)
 import Data.ByteString.Char8 (unpack)
 import qualified Data.ByteString.Lazy as BLS
 import Data.Char (isPunctuation)
+import Data.Conduit (connect)
 import Data.Conduit.Binary (sinkFile, sinkHandle, sinkLbs, sourceLbs)
 import Data.Conduit.Combinators (concatMapE, concatMapM, mapAccumWhile, mapE, splitOnUnboundedE)
 import Data.List (isInfixOf)
@@ -51,6 +52,7 @@ import Network.HTTP.Conduit
   )
 import Network.HTTP.Simple (setRequestResponseTimeout)
 import Network.HTTP.Types
+import SpeechApi (sayText)
 
 data OllamaRequest = OllamaRequest
   { model :: String,
@@ -104,6 +106,12 @@ writeToMailBox' mbox dbPool queryId msg =
       mapM_ (\qid -> addAnswer dbPool (Answer qid msg)) queryId
       atomically $ writeTQueue mbox msg
 
+talker :: MonadResource m => String -> Int -> String -> m ()
+talker sileroHost sileroPort mesg = do
+  liftResourceT $ do
+    liftIO $ sayText sileroHost sileroPort mesg -- TODO: return a list of the durations somewhere so we can advance the time in the listener
+    return ()
+
 getDbStuff :: Maybe QueryId -> Maybe ConnectionPool -> Maybe (QueryId, ConnectionPool)
 getDbStuff q d = do
   q' <- q
@@ -125,7 +133,6 @@ answerQuestion qid question = do
   st <- get
   let apiUrl = "http://" ++ ollamaHost env ++ "/api/generate"
       apiPort = ollamaPort env
-      mailboxWriter = writeToMailBox' (mailbox st) (dbPool st) qid
 
   liftIO $ do
     request <- parseRequest apiUrl
@@ -133,7 +140,8 @@ answerQuestion qid question = do
         body = RequestBodyLBS $ encode payload
         request' = request {method = "POST", requestBody = body, port = apiPort}
         request'' = setRequestResponseTimeout (responseTimeoutMicro (500 * 1000000)) request'
+        talker' = talker (sileroHost env) (sileroPort env)
     manager <- newManager tlsManagerSettings
     runResourceT $ do
       rsp <- http request'' manager
-      runConduit $ responseBody rsp .| chunker mailboxWriter
+      runConduit $ responseBody rsp .| chunker talker'
