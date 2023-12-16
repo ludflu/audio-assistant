@@ -5,7 +5,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module OllamaApi (writeToMailBox', answerQuestion, extractAnswer, makeResponseChunk, jsonChunks, chunker) where
+module OllamaApi (answerQuestion, extractAnswer, makeResponseChunk, jsonChunks, chunker) where
 
 import ChatLogger
 import Conduit (ConduitM, ConduitT, MonadResource, awaitForever, concatC, concatMapAccumC, concatMapC, concatMapCE, filterC, leftover, mapAccumWhileC, mapC, mapCE, mapM_C, runConduit, runConduitRes, sinkLazy, sourceLazy, yield, (.|))
@@ -99,17 +99,12 @@ isPunct c =
 makeResponseChunk :: B.ByteString -> Maybe OllamaResponse
 makeResponseChunk = decode . BLS.fromStrict
 
-writeToMailBox' :: MonadResource m => TQueue String -> Maybe ConnectionPool -> Maybe QueryId -> String -> m ()
-writeToMailBox' mbox dbPool queryId msg =
-  liftResourceT $
-    liftIO $ do
-      mapM_ (\qid -> addAnswer dbPool (Answer qid msg)) queryId
-      atomically $ writeTQueue mbox msg
-
-talker :: MonadResource m => String -> Int -> String -> m ()
-talker sileroHost sileroPort mesg = do
+talker :: MonadResource m => String -> Int -> Maybe ConnectionPool -> Maybe QueryId -> String -> m ()
+talker sileroHost sileroPort connectionPool qid mesg = do
   liftResourceT $ do
-    liftIO $ sayText sileroHost sileroPort mesg -- TODO: return a list of the durations somewhere so we can advance the time in the listener
+    liftIO $ do
+      mapM_ (\qid -> addAnswer connectionPool (Answer qid mesg)) qid
+      sayText sileroHost sileroPort mesg -- TODO: return a list of the durations somewhere so we can advance the time in the listener
     return ()
 
 getDbStuff :: Maybe QueryId -> Maybe ConnectionPool -> Maybe (QueryId, ConnectionPool)
@@ -140,7 +135,7 @@ answerQuestion qid question = do
         body = RequestBodyLBS $ encode payload
         request' = request {method = "POST", requestBody = body, port = apiPort}
         request'' = setRequestResponseTimeout (responseTimeoutMicro (500 * 1000000)) request'
-        talker' = talker (sileroHost env) (sileroPort env)
+        talker' = talker (sileroHost env) (sileroPort env) (dbPool st) qid
     manager <- newManager tlsManagerSettings
     runResourceT $ do
       rsp <- http request'' manager

@@ -36,7 +36,7 @@ import Data.Traversable
 import Guess (guessingGame)
 import Listener (ListenerMonad, ListenerState (dbPool, mailbox), quitNow, readMail, say, speak, writeToMailBox)
 import MatchHelper (dropNonLetters, fuzzyMatch, isMatch, lowerCase)
-import OllamaApi (answerQuestion, writeToMailBox')
+import OllamaApi (answerQuestion)
 import RecordNote (readNote, recordNote)
 import Reminders (setReminder)
 import SayDateTime (currentDay, currentTime)
