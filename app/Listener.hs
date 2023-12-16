@@ -197,12 +197,12 @@ listenWithThreshold threshold = do
       liftIO $ do
         let se = getStartEnd (voiceStart boundary) (voiceEnd boundary)
             (start, end) = fromMaybe (0.0, 0.0) se -- this default should never happen
-        writeBoundedWave (path listener) capfilepath (start - 0.25) end (audioRate env) -- back up a 1/4 second to make sure we don't lose anything
+        writeBoundedWave (path listener) capfilepath (start - 0.10) end (audioRate env) -- back up a 1/10 second to make sure we don't lose anything
         transcript <- sendAudio ("http://" ++ whisperHost env ++ "/") (whisperPort env) capfilepath
         when (debug env) (liftIO $ print transcript)
         return transcript
     else do
-      --      liftIO $ threadDelay $ round (sleepSeconds env * 1000000)
+      liftIO $ threadDelay $ round (sleepSeconds env * 1000000)
       listen
 
 resetVoiceBounds :: ListenerMonad ()
