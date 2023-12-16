@@ -189,7 +189,7 @@ listenWithThreshold threshold = do
     listener
       { voiceStartTime = voiceStart boundary,
         voiceEndTime = voiceEnd boundary,
-        timeOffset = ending + sleepSeconds env
+        timeOffset = ending
       }
   if isComplete boundary && length > 0
     then do
@@ -202,6 +202,10 @@ listenWithThreshold threshold = do
         when (debug env) (liftIO $ print transcript)
         return transcript
     else do
+      put
+        listener
+          { timeOffset = ending + sleepSeconds env
+          }
       liftIO $ threadDelay $ round (sleepSeconds env * 1000000)
       listen
 
