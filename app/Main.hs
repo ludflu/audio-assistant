@@ -65,7 +65,7 @@ runJob config startState = do
   runListenerMonad commandLoop config startState
   print "ending program, killing recorder thread"
   killThread recorderThread
-  run config -- dirty hack because things sometimes crash
+  runJob config startState -- dirty hack because things sometimes crash
 
 makeDbConfig :: EnvConfig -> Maybe PostgresConf
 makeDbConfig config = do

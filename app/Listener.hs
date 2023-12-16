@@ -162,7 +162,9 @@ listenPatiently = listenWithThreshold 0.70
 listen :: ListenerMonad String
 listen = do
   env <- ask
-  listenWithThreshold (activationThreshold env)
+  words <- listenWithThreshold (activationThreshold env)
+  liftIO $ print $ "words: " ++ words
+  return words
 
 -- repeatedly reads from the capture file, looking for voice boundaries (start and stop)
 -- when we find a voice boundary, we splice off that chunk of audio
@@ -195,7 +197,7 @@ listenWithThreshold threshold = do
       liftIO $ do
         let se = getStartEnd (voiceStart boundary) (voiceEnd boundary)
             (start, end) = fromMaybe (0.0, 0.0) se -- this default should never happen
-        writeBoundedWave (path listener) capfilepath (start - 0.25) end (audioRate env) -- back up a 1/4 second to make sure we don't lose anything
+        writeBoundedWave (path listener) capfilepath (start - 0.2) end (audioRate env) -- maybe ? back up a 2/10 second to make sure we don't lose anything
         transcript <- sendAudio ("http://" ++ whisperHost env ++ "/") (whisperPort env) capfilepath
         when (debug env) (liftIO $ print transcript)
         return transcript
@@ -263,14 +265,17 @@ say msg =
     config <- ask
     dur <- liftIO $ sayText (sileroHost config) (sileroPort config) msg
     endTime <- liftIO getCurrentTime
-    let offset = timeOffset listenerState + dur + sleepSeconds config -- advance the offset to skip over the time when the computer was talking
+    let dur = diffUTCTime endTime startTime
+        durSeconds = realToFrac $ nominalDiffTimeToSeconds dur
+        offset = timeOffset listenerState + durSeconds + sleepSeconds config -- advance the offset to skip over the time when the computer was talking
+    liftIO $ print $ "duration: " ++ (show durSeconds)
     put
       listenerState
         { timeOffset = offset,
           voiceStartTime = Nothing,
           voiceEndTime = Nothing
         }
-    return dur
+    return durSeconds
 
 trim :: String -> String
 trim s = T.unpack $ T.strip $ T.pack s
