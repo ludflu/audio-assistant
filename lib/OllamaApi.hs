@@ -120,21 +120,20 @@ chunker chunkAction =
     .| mapM_C chunkAction
 
 answerQuestion :: Maybe (Key ChatLogger.Query) -> String -> ListenerMonad ()
-answerQuestion qid question =
-  let payload = OllamaRequest {model = "mistral", prompt = question, stream = True}
-      body = RequestBodyLBS $ encode payload
-   in do
-        env <- ask
-        st <- get
-        let apiUrl = "http://" ++ ollamaHost env ++ "/api/generate"
-            apiPort = ollamaPort env
-            mailboxWriter = writeToMailBox' (mailbox st) (dbPool st) qid
+answerQuestion qid question = do
+  env <- ask
+  st <- get
+  let apiUrl = "http://" ++ ollamaHost env ++ "/api/generate"
+      apiPort = ollamaPort env
+      mailboxWriter = writeToMailBox' (mailbox st) (dbPool st) qid
 
-        liftIO $ do
-          request' <- parseRequest apiUrl
-          let request'' = request' {method = "POST", requestBody = body, port = apiPort}
-              request = setRequestResponseTimeout (responseTimeoutMicro (500 * 1000000)) request''
-          manager <- newManager tlsManagerSettings
-          runResourceT $ do
-            rsp <- http request manager
-            runConduit $ responseBody rsp .| chunker mailboxWriter
+  liftIO $ do
+    request <- parseRequest apiUrl
+    let payload = OllamaRequest {model = "mistral", prompt = question, stream = True}
+        body = RequestBodyLBS $ encode payload
+        request' = request {method = "POST", requestBody = body, port = apiPort}
+        request'' = setRequestResponseTimeout (responseTimeoutMicro (500 * 1000000)) request'
+    manager <- newManager tlsManagerSettings
+    runResourceT $ do
+      rsp <- http request'' manager
+      runConduit $ responseBody rsp .| chunker mailboxWriter
