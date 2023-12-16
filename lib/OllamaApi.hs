@@ -8,8 +8,24 @@
 module OllamaApi (answerQuestion, extractAnswer, makeResponseChunk, jsonChunks, chunker) where
 
 import ChatLogger
-import Conduit (ConduitM, ConduitT, MonadResource, awaitForever, concatC, concatMapAccumC, concatMapC, concatMapCE, filterC, leftover, mapAccumWhileC, mapC, mapCE, mapM_C, runConduit, runConduitRes, sinkLazy, sourceLazy, yield, (.|))
+import Conduit
+  ( ConduitM,
+    ConduitT,
+    MonadIO (liftIO),
+    MonadResource,
+    awaitForever,
+    filterC,
+    leftover,
+    mapC,
+    mapM_C,
+    runConduit,
+    runResourceT,
+    yield,
+    (.|),
+  )
 import ConfigParser
+  ( EnvConfig (ollamaHost, ollamaPort, sileroHost, sileroPort),
+  )
 import Control.Concurrent (forkIO)
 import Control.Concurrent.STM (STM, TQueue, atomically, readTVar, writeTQueue, writeTVar)
 import Control.Exception (throwIO)
@@ -40,11 +56,10 @@ import Database.Persist.Postgresql (ConnectionPool, Entity (Entity))
 import GHC.Generics (Generic)
 import Listener
 import Network.HTTP.Conduit
-  ( Request (method, port, requestBody, requestHeaders, responseTimeout, secure),
-    RequestBody (RequestBodyBS, RequestBodyLBS),
+  ( Request (method, port, requestBody),
+    RequestBody (RequestBodyLBS),
     Response (responseBody),
     http,
-    httpLbs,
     newManager,
     parseRequest,
     responseTimeoutMicro,
@@ -106,12 +121,6 @@ talker sileroHost sileroPort connectionPool qid mesg = do
       mapM_ (\qid -> addAnswer connectionPool (Answer qid mesg)) qid
       sayText sileroHost sileroPort mesg -- TODO: return a list of the durations somewhere so we can advance the time in the listener
     return ()
-
-getDbStuff :: Maybe QueryId -> Maybe ConnectionPool -> Maybe (QueryId, ConnectionPool)
-getDbStuff q d = do
-  q' <- q
-  d' <- d
-  return (q', d')
 
 chunker :: Monad m => (String -> m ()) -> ConduitT B.ByteString c m ()
 chunker chunkAction =
