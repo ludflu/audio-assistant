@@ -162,7 +162,9 @@ listenPatiently = listenWithThreshold 0.70
 listen :: ListenerMonad String
 listen = do
   env <- ask
-  listenWithThreshold (activationThreshold env)
+  words <- listenWithThreshold (activationThreshold env)
+  liftIO $ print $ "words: " ++ words
+  return words
 
 -- repeatedly reads from the capture file, looking for voice boundaries (start and stop)
 -- when we find a voice boundary, we splice off that chunk of audio

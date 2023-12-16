@@ -6,12 +6,12 @@ module Guess where
 import Control.Concurrent (threadDelay)
 import Control.Monad.State (liftIO)
 import Data.Char (isNumber, toLower)
-import Listener (ListenerMonad, listen, writeToMailBox)
+import Listener (ListenerMonad, listen, listenPatiently, writeToMailBox)
 import MatchHelper (parseInt, readInt)
 import System.Random (Random (randomRs), newStdGen)
 
 listenForInteger :: ListenerMonad (Maybe Integer)
-listenForInteger = readInt <$> listen
+listenForInteger = readInt <$> listenPatiently
 
 guess :: Integer -> ListenerMonad ()
 guess secret = do
