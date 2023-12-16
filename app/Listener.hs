@@ -144,8 +144,8 @@ getListenerState :: ListenerMonad ListenerState
 getListenerState = do
   listener <- get
   wasRecordingReset <- liftIO $ tryTakeMVar $ audioReset listener
-  resetOffset wasRecordingReset
   mail <- liftIO $ atomically $ tryReadTQueue $ mailbox listener
+  resetOffset wasRecordingReset
   mapM_ say mail
   get
 
