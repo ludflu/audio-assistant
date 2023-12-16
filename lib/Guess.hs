@@ -6,7 +6,7 @@ module Guess where
 import Control.Concurrent (threadDelay)
 import Control.Monad.State (liftIO)
 import Data.Char (isNumber, toLower)
-import Listener (ListenerMonad, listen, listenPatiently, writeToMailBox)
+import Listener (ListenerMonad, listen, listenPatiently, say, writeToMailBox)
 import MatchHelper (parseInt, readInt)
 import System.Random (Random (randomRs), newStdGen)
 
@@ -15,26 +15,27 @@ listenForInteger = readInt <$> listenPatiently
 
 guess :: Integer -> ListenerMonad ()
 guess secret = do
-  writeToMailBox "Guess the number: "
+  say "Guess the number: "
   liftIO $ threadDelay 250000
   guessedNumber <- listenForInteger
   case guessedNumber of
     Nothing -> do
-      writeToMailBox "I couldn't understand you."
+      say "I couldn't understand you."
       guess secret
     Just gnum ->
       if gnum > secret
         then do
-          writeToMailBox "Too high."
+          say "Too high."
           guess secret
         else
           if gnum < secret
             then do
-              writeToMailBox "Too low."
+              say "Too low."
               guess secret
             else do
-              writeToMailBox "You got it!"
-              writeToMailBox "Thanks for playing!"
+              say "You got it!"
+              say "Thanks for playing!"
+              return ()
 
 guessingGame :: ListenerMonad ()
 guessingGame = do
