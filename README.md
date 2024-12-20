@@ -15,7 +15,7 @@ A [**simple wrapper API**](https://gitlab.com/ludflu/whisper-asr) is provided, b
 
 ## LLM Interface
 
-Audio assistant supports open ended question answering by integrating with an LLM of your choice using a [custom streaming client](https://github.com/ludflu/audio-assistant/blob/main/lib/OllamaApi.hs) for the [Ollama API](https://github.com/ollama/ollama/blob/main/docs/api.md_
+Audio assistant supports open ended question answering by integrating with an LLM of your choice using a [custom streaming client](https://github.com/ludflu/audio-assistant/blob/main/lib/OllamaApi.hs) for the [Ollama API](https://github.com/ollama/ollama/blob/main/docs/api.md)
 
 ## Audio Processing
 
