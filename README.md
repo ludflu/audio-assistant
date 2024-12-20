@@ -13,6 +13,10 @@ At some point it would be nice to upgrade to a more modern system.
 OpenAI's Whisper model is used to recognize incoming audio and transform it to text.
 A [**simple wrapper API**](https://gitlab.com/ludflu/whisper-asr) is provided, but other API's could be used instead.
 
+## LLM Interface
+
+Audio assistant supports open ended question answering by integrating with an LLM of your choice using a [custom streaming client](https://github.com/ludflu/audio-assistant/blob/main/lib/OllamaApi.hs) for the Ollama API
+
 ## Audio Processing
 
 In order to deal with audio in a streaming fashion, without the need to read all the samples into memory,
